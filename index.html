@@ -11,759 +11,1210 @@
 <style>
 :root{
   --purple:#667eea;--purple2:#764ba2;--purplel:#eef0fd;--purpled:#3d4db5;
-  --green:#6bcf7f;--red:#ff6b6b;--amber:#ffd93d;
-  --bg:#f7f8fc;--card:#fff;--border:#e8eaf0;
+  --green:#22c55e;--greenl:#dcfce7;--greend:#15803d;
+  --red:#ef4444;--redl:#fee2e2;
+  --amber:#f59e0b;--amberl:#fef9c3;
+  --bg:#f4f5fb;--card:#fff;--border:#e4e6f0;
   --tx:#1a1a2e;--tx2:#5a5a7a;--tx3:#9898b8;
-  --ra:16px;--ra2:12px;
-  --shadow:0 4px 20px rgba(102,126,234,.10);
-  --shadow-lg:0 12px 40px rgba(102,126,234,.18);
+  --ra:16px;--ra2:12px;--ra3:8px;
+  --sh:0 2px 12px rgba(102,126,234,.10);
+  --sh2:0 8px 32px rgba(102,126,234,.18);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
-  font-family:'DM Sans',sans-serif;
-  background:var(--bg);
-  color:var(--tx);
+  font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);
   min-height:100vh;
-  padding:max(env(safe-area-inset-top),12px) 12px calc(env(safe-area-inset-bottom)+20px);
+  padding:max(env(safe-area-inset-top),12px) 12px calc(env(safe-area-inset-bottom)+80px);
   -webkit-tap-highlight-color:transparent;
 }
-.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:.75rem}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:.7rem}
 
-/* Header */
+/* ── Background dot ── */
+#bgDot{
+  position:fixed;bottom:max(env(safe-area-inset-bottom),16px);right:16px;
+  width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;z-index:200;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+  transition:background .4s,box-shadow .4s;
+  border:2px solid rgba(255,255,255,.6);
+}
+#bgDot.good{background:#22c55e}
+#bgDot.warn{background:#f59e0b}
+#bgDot.bad{background:#ef4444;animation:pulse .8s infinite}
+#bgDot.idle{background:#9898b8}
+@keyframes pulse{0%,100%{box-shadow:0 4px 16px rgba(239,68,68,.4)}50%{box-shadow:0 4px 24px rgba(239,68,68,.8)}}
+
+/* ── Dot tooltip ── */
+#bgTooltip{
+  position:fixed;bottom:max(env(safe-area-inset-bottom),74px);right:16px;
+  background:var(--tx);color:#fff;font-size:12px;padding:6px 11px;
+  border-radius:var(--ra3);white-space:nowrap;z-index:201;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  transform:translateX(-8px);
+}
+#bgTooltip.show{opacity:1}
+
+/* ── Tabs ── */
+.tabs{
+  display:flex;gap:0;background:var(--card);
+  border-radius:var(--ra);border:1px solid var(--border);
+  padding:4px;overflow:hidden;box-shadow:var(--sh);
+}
+.tab-btn{
+  flex:1;padding:10px 6px;border:none;background:transparent;
+  font-size:12.5px;font-weight:500;color:var(--tx3);cursor:pointer;
+  border-radius:calc(var(--ra) - 4px);transition:all .2s;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.tab-btn.active{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;font-weight:600}
+.tab-btn:active:not(.active){background:var(--bg)}
+
+/* ── Header ── */
 .hdr{
   background:linear-gradient(135deg,var(--purple),var(--purple2));
-  border-radius:var(--ra);
-  padding:18px 16px;
-  color:#fff;
-  display:flex;align-items:center;gap:12px;
-  box-shadow:var(--shadow-lg);
+  border-radius:var(--ra);padding:16px;color:#fff;
+  display:flex;align-items:center;gap:12px;box-shadow:var(--sh2);
 }
-.hdr-icon{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.hdr-text h1{font-size:18px;font-weight:700;letter-spacing:-.3px}
-.hdr-text p{font-size:11.5px;opacity:.8;margin-top:2px}
+.hdr-icon{width:42px;height:42px;background:rgba(255,255,255,.2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hdr h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.hdr p{font-size:11px;opacity:.75;margin-top:2px}
+.hdr-status{margin-left:auto;text-align:right;flex-shrink:0}
+.hdr-status .dot-label{font-size:10px;opacity:.7}
+.hdr-status .dot-val{font-size:13px;font-weight:700}
 
-/* Permission banner */
-.perm-banner{
-  background:#fffbeb;border:1.5px solid #fbbf24;border-radius:var(--ra2);
-  padding:14px 16px;display:flex;align-items:flex-start;gap:10px;
-}
-.perm-banner i{color:#d97706;font-size:18px;flex-shrink:0;margin-top:1px}
-.perm-banner p{font-size:13px;color:#92400e;flex:1;line-height:1.5}
-.btn-perm{
-  margin-top:8px;padding:8px 16px;background:#f59e0b;color:#fff;
-  border:none;border-radius:8px;font-size:13px;font-weight:600;
-  cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;
-}
-.btn-perm:active{opacity:.85}
+/* ── Cards ── */
+.card{background:var(--card);border-radius:var(--ra);border:1px solid var(--border);padding:16px;box-shadow:var(--sh)}
+.card-title{font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.8px;text-transform:uppercase;
+  margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card-title i{font-size:15px;color:var(--purple)}
 
-/* Balance display */
-.balance-card{
-  background:var(--card);border-radius:var(--ra);border:1px solid var(--border);
-  padding:20px;box-shadow:var(--shadow);
-}
-.balance-title{font-size:13px;font-weight:600;color:var(--tx2);
-  letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;
-  display:flex;align-items:center;gap:6px}
-.balance-title i{font-size:15px;color:var(--purple)}
-
-/* Ring meter */
-.ring-wrap{
-  display:flex;justify-content:center;align-items:center;
-  margin-bottom:16px;position:relative;
-}
+/* ── Balance ring ── */
+.ring-wrap{display:flex;justify-content:center;margin-bottom:14px;position:relative}
 .ring-wrap svg{transform:rotate(-90deg)}
-.ring-trk{fill:none;stroke:#eee;stroke-width:8}
-.ring-fill{fill:none;stroke:var(--purple);stroke-width:8;stroke-linecap:round;
-  transition:stroke-dashoffset .15s ease-out, stroke .15s}
-.ring-label{
-  position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-}
-.ring-score{font-family:'DM Mono',monospace;font-size:36px;font-weight:500;line-height:1;color:var(--tx)}
-.ring-unit{font-size:12px;color:var(--tx3);margin-top:3px}
-.ring-grade{font-size:13px;font-weight:700;margin-top:2px}
+.rtrk{fill:none;stroke:#eee;stroke-width:8}
+.rfil{fill:none;stroke:var(--purple);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .15s,stroke .2s}
+.rlbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rscore{font-family:'DM Mono',monospace;font-size:34px;font-weight:500;line-height:1;color:var(--tx)}
+.runit{font-size:11px;color:var(--tx3);margin-top:2px}
+.rgrade{font-size:12px;font-weight:700;margin-top:2px}
 
-/* Bar meter */
-.bar-wrap{margin-bottom:16px}
-.bar-label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-bottom:6px}
-.bar-track{
-  width:100%;height:14px;background:#eee;border-radius:7px;
-  position:relative;overflow:visible;
-}
-.bar-fill{
-  height:100%;border-radius:7px;
+/* ── Bar ── */
+.bar-wrap{margin-bottom:14px}
+.bar-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--tx3);margin-bottom:5px}
+.bar-track{width:100%;height:12px;background:#eee;border-radius:6px;position:relative;overflow:visible}
+.bar-fill{height:100%;border-radius:6px;
   background:linear-gradient(90deg,var(--red) 0%,var(--amber) 50%,var(--green) 100%);
-  transition:width .12s ease-out;
-  position:relative;
-}
-.bar-center{
-  position:absolute;left:50%;top:-3px;
-  width:2px;height:20px;background:var(--tx2);
-  transform:translateX(-50%);border-radius:1px;
-  opacity:.4;
-}
-.bar-needle{
-  position:absolute;top:-4px;
-  width:6px;height:22px;background:var(--tx);
-  border-radius:3px;transform:translateX(-50%);
-  transition:left .12s ease-out;
-  box-shadow:0 2px 6px rgba(0,0,0,.25);
-}
+  transition:width .12s}
+.bar-center{position:absolute;left:50%;top:-4px;width:2px;height:20px;
+  background:var(--tx2);transform:translateX(-50%);border-radius:1px;opacity:.3}
+.bar-needle{position:absolute;top:-5px;width:6px;height:22px;background:var(--tx);
+  border-radius:3px;transform:translateX(-50%);transition:left .12s;
+  box-shadow:0 2px 6px rgba(0,0,0,.25)}
 
-/* Value row */
-.val-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.val-box{
-  background:var(--bg);border-radius:var(--ra2);border:1px solid var(--border);
-  padding:10px 8px;text-align:center;
-}
-.val-lbl{font-size:10.5px;color:var(--tx3);margin-bottom:4px;font-weight:500}
-.val-num{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--tx);line-height:1}
-.val-unit{font-size:10px;color:var(--tx3);margin-top:2px}
+/* ── Val row ── */
+.val-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.val-box{background:var(--bg);border-radius:var(--ra2);border:1px solid var(--border);
+  padding:9px 6px;text-align:center}
+.val-lbl{font-size:10px;color:var(--tx3);margin-bottom:3px;font-weight:500}
+.val-num{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:var(--tx);line-height:1}
+.val-unit{font-size:9.5px;color:var(--tx3);margin-top:1px}
 
-/* Status */
-.status{
-  border-radius:var(--ra2);padding:12px 14px;
-  font-size:13px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;
-  border:1px solid var(--border);
-}
-.status.normal{background:#eef0fd;border-color:#c7ccf7;color:#3d4db5}
-.status.warning{background:#fffbeb;border-color:#fbbf24;color:#92400e}
-.status.alert{background:#fff1f1;border-color:#fca5a5;color:#991b1b}
-.status.good{background:#ecfdf5;border-color:#6ee7b7;color:#065f46}
-.status i{flex-shrink:0;font-size:15px;margin-top:1px}
+/* ── Status ── */
+.status{border-radius:var(--ra2);padding:10px 13px;font-size:13px;
+  display:flex;align-items:flex-start;gap:8px;line-height:1.5;border:1px solid var(--border)}
+.status i{flex-shrink:0;font-size:14px;margin-top:1px}
+.s-normal{background:var(--purplel);border-color:#c7ccf7;color:var(--purpled)}
+.s-good{background:var(--greenl);border-color:#86efac;color:var(--greend)}
+.s-warn{background:var(--amberl);border-color:#fcd34d;color:#92400e}
+.s-alert{background:var(--redl);border-color:#fca5a5;color:#991b1b}
 
-/* Controls */
+/* ── Buttons ── */
 .btns{display:flex;gap:8px}
-.btn{
-  flex:1;padding:14px;border:none;border-radius:var(--ra2);
-  font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  min-height:50px;transition:all .2s;-webkit-tap-highlight-color:transparent;
-}
-.btn:active{transform:scale(.97)}
-.btn:disabled{opacity:.45;cursor:default;transform:none}
-.btn-start{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff}
+.btn{flex:1;padding:13px;border:none;border-radius:var(--ra2);font-size:13.5px;
+  font-weight:600;cursor:pointer;font-family:inherit;min-height:48px;
+  display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;
+  -webkit-tap-highlight-color:transparent}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.btn-primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff}
 .btn-stop{background:var(--red);color:#fff;flex:.7}
-.btn-reset{background:var(--bg);border:1.5px solid var(--border);color:var(--tx2);flex:.5}
-.btn-reset:active{background:var(--border)}
+.btn-ghost{background:var(--bg);border:1.5px solid var(--border);color:var(--tx2);flex:.5}
+.btn-ghost:active{background:var(--border)}
+.btn-green{background:var(--green);color:#fff}
 
-/* Exercises */
-.exercises-card{
-  background:var(--card);border-radius:var(--ra);border:1px solid var(--border);
-  padding:18px;box-shadow:var(--shadow);
-}
-.section-title{font-size:13px;font-weight:600;color:var(--tx2);
-  letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;
-  display:flex;align-items:center;gap:6px}
-.ex-grid{display:flex;flex-direction:column;gap:8px}
-.ex-item{
-  border:1.5px solid var(--border);border-radius:var(--ra2);padding:12px 14px;
-  cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;
-  display:flex;align-items:center;gap:12px;
-}
-.ex-item:active{transform:scale(.98)}
-.ex-item.active{border-color:var(--purple);background:var(--purplel)}
-.ex-item.done{border-color:var(--green);background:#ecfdf5}
-.ex-icon{
-  width:38px;height:38px;border-radius:50%;background:var(--purplel);
-  display:flex;align-items:center;justify-content:center;
-  font-size:17px;color:var(--purple);flex-shrink:0;
-}
-.ex-item.done .ex-icon{background:#dcfce7;color:#16a34a}
-.ex-text{flex:1}
+/* ── Exercise list ── */
+.ex-list{display:flex;flex-direction:column;gap:8px}
+.ex-row{border:1.5px solid var(--border);border-radius:var(--ra2);
+  padding:11px 13px;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.ex-row.selected{border-color:var(--purple);background:var(--purplel)}
+.ex-row.done{border-color:var(--green);background:var(--greenl)}
+.ex-row.running{border-color:var(--amber);background:var(--amberl)}
+.ex-top{display:flex;align-items:center;gap:10px;cursor:pointer}
+.ex-cb{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.ex-row.selected .ex-cb{background:var(--purple);border-color:var(--purple);color:#fff}
+.ex-row.done .ex-cb{background:var(--green);border-color:var(--green);color:#fff}
+.ex-icon{font-size:18px;flex-shrink:0;color:var(--purple)}
+.ex-row.done .ex-icon{color:var(--greend)}
+.ex-info{flex:1}
 .ex-name{font-size:13.5px;font-weight:600;color:var(--tx)}
-.ex-desc{font-size:12px;color:var(--tx3);margin-top:2px}
-.ex-dur{font-size:11.5px;color:var(--purple);font-weight:600;flex-shrink:0}
-.ex-item.done .ex-dur{color:#16a34a}
-.ex-timer{
-  display:none;margin-top:8px;padding:10px 12px;
-  background:var(--purplel);border-radius:var(--ra2);
-  font-size:13px;color:var(--purpled);
-}
-.ex-timer.show{display:block}
-.ex-timer-bar{
-  height:5px;background:rgba(102,126,234,.2);border-radius:3px;
-  margin-top:8px;overflow:hidden;
-}
-.ex-timer-fill{height:100%;background:var(--purple);border-radius:3px;
+.ex-desc{font-size:11.5px;color:var(--tx3);margin-top:2px}
+.ex-dur-badge{padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;
+  background:var(--purplel);color:var(--purpled);flex-shrink:0;cursor:pointer}
+.ex-row.done .ex-dur-badge{background:var(--greenl);color:var(--greend)}
+
+/* Duration adjuster */
+.ex-adj{display:none;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+.ex-adj.show{display:block}
+.adj-row{display:flex;align-items:center;gap:8px}
+.adj-label{font-size:12px;color:var(--tx3);flex:1}
+.adj-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);
+  background:transparent;cursor:pointer;font-size:16px;font-weight:700;
+  color:var(--purple);display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent}
+.adj-btn:active{background:var(--purplel)}
+.adj-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:600;
+  color:var(--tx);min-width:40px;text-align:center}
+
+/* Progress bar in ex */
+.ex-prog{height:4px;background:#eee;border-radius:2px;margin-top:8px;overflow:hidden}
+.ex-prog-fill{height:100%;background:var(--amber);border-radius:2px;
   transition:width 1s linear;width:0%}
+.ex-row.done .ex-prog-fill{background:var(--green);width:100%}
 
-/* History */
-.history-card{
-  background:var(--card);border-radius:var(--ra);border:1px solid var(--border);
-  padding:18px;box-shadow:var(--shadow);
+/* Batch controls */
+.batch-bar{
+  background:var(--card);border-radius:var(--ra2);border:1px solid var(--border);
+  padding:12px 14px;display:flex;align-items:center;gap:10px;
 }
-.history-list{display:flex;flex-direction:column;gap:6px}
-.history-row{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;background:var(--bg);border-radius:var(--ra2);
-  border:1px solid var(--border);
-}
-.history-date{font-size:12px;color:var(--tx3);flex:1}
-.history-score-badge{
-  padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;
-}
-.score-ex{background:#dcfce7;color:#16a34a}
-.score-gd{background:#dbeafe;color:#1d4ed8}
-.score-ok{background:#fef9c3;color:#a16207}
-.score-nd{background:#fee2e2;color:#991b1b}
-.empty-state{text-align:center;padding:20px;font-size:13px;color:var(--tx3)}
+.batch-info{font-size:12.5px;color:var(--tx2);flex:1}
+.batch-info strong{color:var(--tx)}
+.sel-all-btn{padding:6px 12px;border-radius:var(--ra3);border:1.5px solid var(--border);
+  background:transparent;font-size:12px;color:var(--tx2);cursor:pointer;
+  font-family:inherit;-webkit-tap-highlight-color:transparent}
+.sel-all-btn:active{background:var(--bg)}
 
-/* Timer overlay */
-.timer-overlay{
-  position:fixed;inset:0;background:rgba(26,26,46,.85);
+/* ── Timer overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(26,26,46,.88);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:100;display:none;
-  padding:24px;
-}
-.timer-overlay.show{display:flex}
-.timer-box{
-  background:#fff;border-radius:24px;padding:32px 28px;
-  width:100%;max-width:340px;text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.3);
-}
-.timer-ex-name{font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px}
-.timer-ex-desc{font-size:13px;color:var(--tx3);margin-bottom:24px;line-height:1.5}
-.timer-ring-wrap{display:flex;justify-content:center;margin-bottom:20px}
-.timer-ring-wrap svg{transform:rotate(-90deg)}
-.timer-trk{fill:none;stroke:#eee;stroke-width:10}
-.timer-fill{fill:none;stroke:var(--purple);stroke-width:10;stroke-linecap:round;
-  transition:stroke-dashoffset 1s linear}
-.timer-num{
-  position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-}
-.timer-count{font-family:'DM Mono',monospace;font-size:48px;font-weight:500;color:var(--tx);line-height:1}
-.timer-unit{font-size:12px;color:var(--tx3);margin-top:4px}
-.timer-phase{font-size:16px;font-weight:700;margin-bottom:12px}
-.timer-cue{font-size:13px;color:var(--tx3);min-height:20px}
-.timer-cancel{
-  margin-top:16px;padding:12px 28px;background:var(--bg);
-  border:1.5px solid var(--border);border-radius:var(--ra2);
-  font-size:14px;font-weight:600;color:var(--tx2);cursor:pointer;
-  font-family:inherit;-webkit-tap-highlight-color:transparent;
-}
-.timer-cancel:active{background:var(--border)}
+  z-index:300;display:none;padding:20px}
+.overlay.show{display:flex}
+.ov-box{background:#fff;border-radius:24px;padding:28px 24px;
+  width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.ov-step{font-size:11px;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.ov-name{font-size:17px;font-weight:700;color:var(--tx);margin-bottom:4px}
+.ov-tip{font-size:12.5px;color:var(--tx3);margin-bottom:20px;line-height:1.5}
+.ov-ring{position:relative;width:150px;height:150px;margin:0 auto 16px}
+.ov-ring svg{transform:rotate(-90deg)}
+.ov-trk{fill:none;stroke:#eee;stroke-width:10}
+.ov-fil{fill:none;stroke:var(--purple);stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.ov-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ov-count{font-family:'DM Mono',monospace;font-size:44px;font-weight:500;color:var(--tx);line-height:1}
+.ov-unit{font-size:11px;color:var(--tx3);margin-top:3px}
+.ov-phase{font-size:15px;font-weight:700;margin-bottom:8px;color:var(--purple)}
+.ov-cue{font-size:12.5px;color:var(--tx3);min-height:18px;margin-bottom:16px}
+.ov-prog-wrap{display:flex;gap:4px;justify-content:center;margin-bottom:14px}
+.ov-prog-dot{width:8px;height:8px;border-radius:50%;background:#eee;transition:background .3s}
+.ov-prog-dot.done{background:var(--green)}
+.ov-prog-dot.active{background:var(--purple)}
+.ov-cancel{padding:11px 28px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:var(--ra2);font-size:13.5px;font-weight:600;color:var(--tx2);
+  cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent}
+.ov-cancel:active{background:var(--border)}
 
-/* Floating back */
-.fab-back{
-  position:fixed;bottom:max(env(safe-area-inset-bottom),16px);right:16px;
-  width:48px;height:48px;border-radius:50%;
-  background:linear-gradient(135deg,var(--purple),var(--purple2));
-  color:#fff;border:none;cursor:pointer;font-size:22px;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 16px rgba(102,126,234,.4);
-  -webkit-tap-highlight-color:transparent;
-  display:none;
-}
+/* ── History tab ── */
+.day-group{margin-bottom:14px}
+.day-label{font-size:11.5px;font-weight:700;color:var(--tx3);letter-spacing:.5px;
+  text-transform:uppercase;margin-bottom:6px;padding-left:2px}
+.hist-row{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--card);border-radius:var(--ra2);border:1px solid var(--border);
+  margin-bottom:5px}
+.hist-time{font-size:11.5px;color:var(--tx3);width:42px;flex-shrink:0}
+.hist-info{flex:1}
+.hist-type{font-size:12.5px;font-weight:600;color:var(--tx)}
+.hist-detail{font-size:11px;color:var(--tx3);margin-top:1px}
+.score-badge{padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0}
+.sb-ex{background:var(--greenl);color:var(--greend)}
+.sb-gd{background:var(--purplel);color:var(--purpled)}
+.sb-ok{background:var(--amberl);color:#92400e}
+.sb-nd{background:var(--redl);color:#991b1b}
+.sb-ex-label{font-size:10px;display:block;margin-top:1px;opacity:.7}
+.empty-hist{text-align:center;padding:24px;font-size:13px;color:var(--tx3)}
+.export-btn{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:var(--ra2);
+  background:transparent;color:var(--tx2);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;
+  -webkit-tap-highlight-color:transparent;margin-top:4px}
+.export-btn:active{background:var(--bg)}
+
+/* ── Stats mini ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat-box{background:var(--bg);border-radius:var(--ra2);border:1px solid var(--border);padding:12px}
+.stat-lbl{font-size:10.5px;color:var(--tx3);margin-bottom:4px}
+.stat-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--tx);line-height:1}
+.stat-unit{font-size:10px;color:var(--tx3)}
+
+/* ── Permission ── */
+.perm-card{background:#fffbeb;border:1.5px solid #fbbf24;border-radius:var(--ra2);
+  padding:14px;display:flex;gap:10px;align-items:flex-start}
+.perm-card i{color:#d97706;font-size:18px;flex-shrink:0;margin-top:1px}
+.perm-card p{font-size:13px;color:#92400e;flex:1;line-height:1.5}
+.perm-btn{margin-top:8px;padding:8px 16px;background:#f59e0b;color:#fff;border:none;
+  border-radius:var(--ra3);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* ── Trend chart ── */
+.trend-wrap{height:80px;position:relative;margin-bottom:4px}
+.trend-wrap canvas{width:100%;height:100%}
+
+/* ── Link back ── */
+.back-link{display:flex;align-items:center;gap:12px;padding:13px 15px;
+  background:var(--card);border-radius:var(--ra);border:1.5px solid var(--border);
+  text-decoration:none;color:var(--tx);box-shadow:var(--sh)}
+.back-link i:first-child{color:var(--purple);font-size:18px}
+.back-link-text{flex:1}
+.back-link-text div:first-child{font-size:13px;font-weight:600}
+.back-link-text div:last-child{font-size:11px;color:var(--tx3)}
+
+/* ── Tab content ── */
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column;gap:.7rem}
 </style>
 </head>
 <body>
-<div class="app" id="app">
+
+<!-- Background dot (always visible) -->
+<div id="bgDot" class="idle" onclick="dotTap()" title="即時平衡">⚖️</div>
+<div id="bgTooltip">初始化感測器中…</div>
+
+<div class="app">
 
   <!-- Header -->
   <div class="hdr">
-    <div class="hdr-icon"><i class="ti ti-walk"></i></div>
-    <div class="hdr-text">
+    <div class="hdr-icon"><i class="ti ti-activity"></i></div>
+    <div>
       <h1>步態平衡訓練器</h1>
-      <p>Gait Balance Trainer · 使用手機陀螺儀</p>
+      <p>Gait Balance Trainer · 背景即時偵測中</p>
+    </div>
+    <div class="hdr-status">
+      <div class="dot-label">即時分數</div>
+      <div class="dot-val" id="hdrScore">--</div>
     </div>
   </div>
 
-  <!-- Permission banner (iOS only) -->
-  <div class="perm-banner" id="permBanner" style="display:none">
-    <i class="ti ti-alert-circle"></i>
-    <div>
-      <p>需要動作感測器權限才能測量步態平衡</p>
-      <button class="btn-perm" onclick="requestPerm()">授予權限</button>
-    </div>
-  </div>
-
-  <!-- Balance display -->
-  <div class="balance-card">
-    <div class="balance-title"><i class="ti ti-activity"></i>即時平衡</div>
-
-    <!-- Score ring -->
-    <div class="ring-wrap">
-      <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle class="ring-trk" cx="70" cy="70" r="58"/>
-        <circle class="ring-fill" id="ringFill" cx="70" cy="70" r="58"
-          stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
-      </svg>
-      <div class="ring-label">
-        <div class="ring-score" id="ringScore">--</div>
-        <div class="ring-unit">平衡分</div>
-        <div class="ring-grade" id="ringGrade" style="color:var(--tx3)">--</div>
-      </div>
-    </div>
-
-    <!-- Bar -->
-    <div class="bar-wrap">
-      <div class="bar-label">
-        <span><i class="ti ti-arrow-left" style="font-size:11px"></i> 左傾</span>
-        <span>中立</span>
-        <span>右傾 <i class="ti ti-arrow-right" style="font-size:11px"></i></span>
-      </div>
-      <div class="bar-track">
-        <div class="bar-fill" id="barFill" style="width:50%"></div>
-        <div class="bar-center"></div>
-        <div class="bar-needle" id="barNeedle" style="left:50%"></div>
-      </div>
-    </div>
-
-    <!-- Values -->
-    <div class="val-row">
-      <div class="val-box">
-        <div class="val-lbl">左傾角</div>
-        <div class="val-num" id="valLeft">--</div>
-        <div class="val-unit">°</div>
-      </div>
-      <div class="val-box">
-        <div class="val-lbl">重心偏移</div>
-        <div class="val-num" id="valCenter">--</div>
-        <div class="val-unit">°</div>
-      </div>
-      <div class="val-box">
-        <div class="val-lbl">晃動幅度</div>
-        <div class="val-num" id="valSway">--</div>
-        <div class="val-unit">°</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Status -->
-  <div class="status normal" id="statusBox">
-    <i class="ti ti-info-circle"></i>
-    <span id="statusText">準備就緒。按下「開始測量」，手持手機直立行走或站立。</span>
-  </div>
-
-  <!-- Controls -->
-  <div class="btns">
-    <button class="btn btn-start" id="btnStart" onclick="startMeasure()">
-      <i class="ti ti-player-play"></i>開始測量
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('balance')" id="tab-balance">
+      <i class="ti ti-activity"></i>即時
     </button>
-    <button class="btn btn-stop" id="btnStop" onclick="stopMeasure()" disabled>
-      <i class="ti ti-player-stop"></i>停止
+    <button class="tab-btn" onclick="switchTab('exercise')" id="tab-exercise">
+      <i class="ti ti-dumbbell"></i>訓練
     </button>
-    <button class="btn btn-reset" onclick="resetAll()">
-      <i class="ti ti-refresh"></i>
+    <button class="tab-btn" onclick="switchTab('history')" id="tab-history">
+      <i class="ti ti-chart-bar"></i>記錄
     </button>
   </div>
 
-  <!-- Balance exercises -->
-  <div class="exercises-card">
-    <div class="section-title"><i class="ti ti-dumbbell" style="color:var(--purple)"></i>平衡訓練動作</div>
-    <div class="ex-grid" id="exGrid"></div>
+  <!-- ── Tab: Balance ── -->
+  <div class="tab-content active" id="tabBalance">
+
+    <!-- Permission -->
+    <div class="perm-card" id="permCard" style="display:none">
+      <i class="ti ti-alert-circle"></i>
+      <div>
+        <p>需要動作感測器權限才能偵測步態平衡</p>
+        <button class="perm-btn" onclick="requestPerm()">授予權限 →</button>
+      </div>
+    </div>
+
+    <!-- Balance display -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-activity"></i>即時平衡狀態</div>
+
+      <div class="ring-wrap">
+        <svg width="130" height="130" viewBox="0 0 130 130">
+          <circle class="rtrk" cx="65" cy="65" r="54"/>
+          <circle class="rfil" id="ringFil" cx="65" cy="65" r="54"
+            stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+        </svg>
+        <div class="rlbl">
+          <div class="rscore" id="ringScore">--</div>
+          <div class="runit">平衡分</div>
+          <div class="rgrade" id="ringGrade" style="color:var(--tx3)">--</div>
+        </div>
+      </div>
+
+      <div class="bar-wrap">
+        <div class="bar-labels">
+          <span>← 左傾</span><span>中立</span><span>右傾 →</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="barFill" style="width:50%"></div>
+          <div class="bar-center"></div>
+          <div class="bar-needle" id="barNeedle" style="left:50%"></div>
+        </div>
+      </div>
+
+      <div class="val-row">
+        <div class="val-box">
+          <div class="val-lbl">左傾角</div>
+          <div class="val-num" id="valL">--</div>
+          <div class="val-unit">°</div>
+        </div>
+        <div class="val-box">
+          <div class="val-lbl">重心偏移</div>
+          <div class="val-num" id="valC">--</div>
+          <div class="val-unit">°</div>
+        </div>
+        <div class="val-box">
+          <div class="val-lbl">晃動幅度</div>
+          <div class="val-num" id="valS">--</div>
+          <div class="val-unit">°</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status s-normal" id="statusBox">
+      <i class="ti ti-info-circle"></i>
+      <span id="statusText">背景偵測中，手持手機直立行走或站立即可自動感測。</span>
+    </div>
+
+    <!-- Manual session controls -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-ruler-measure"></i>精準測量（選用）</div>
+      <p style="font-size:12.5px;color:var(--tx3);margin-bottom:12px;line-height:1.6">
+        啟動後系統會記錄完整一次測量結果，結束後存入記錄。<br>
+        平時背景自動偵測不需要此步驟。
+      </p>
+      <div class="btns">
+        <button class="btn btn-primary" id="btnStart" onclick="startSession()">
+          <i class="ti ti-player-play"></i>開始精準測量
+        </button>
+        <button class="btn btn-stop" id="btnStop" onclick="stopSession()" disabled>
+          <i class="ti ti-player-stop"></i>停止
+        </button>
+        <button class="btn btn-ghost" onclick="resetDisplay()"><i class="ti ti-refresh"></i></button>
+      </div>
+    </div>
+
   </div>
 
-  <!-- History -->
-  <div class="history-card">
-    <div class="section-title"><i class="ti ti-chart-bar" style="color:var(--purple)"></i>測量記錄</div>
-    <div class="history-list" id="historyList">
-      <div class="empty-state">尚無記錄</div>
+  <!-- ── Tab: Exercise ── -->
+  <div class="tab-content" id="tabExercise">
+
+    <!-- Batch bar -->
+    <div class="batch-bar">
+      <div class="batch-info">
+        已選 <strong id="selCount">0</strong> 個動作
+        · 預計 <strong id="selTime">0</strong> 秒
+      </div>
+      <button class="sel-all-btn" onclick="toggleSelectAll()">全選 / 清除</button>
     </div>
+
+    <!-- Exercise list -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-dumbbell"></i>平衡訓練動作</div>
+      <div class="ex-list" id="exList"></div>
+    </div>
+
+    <!-- Start batch button -->
+    <div class="btns">
+      <button class="btn btn-green" id="btnBatch" onclick="startBatch()" disabled>
+        <i class="ti ti-player-play"></i>一貫完成選取動作
+      </button>
+    </div>
+
+    <div class="card" style="font-size:12px;color:var(--tx3);line-height:1.8">
+      <div class="card-title"><i class="ti ti-bulb"></i>使用說明</div>
+      <p>・點動作列 → 勾選 / 取消選取</p>
+      <p>・點右側秒數 → 調整該動作時長（10～120秒）</p>
+      <p>・選好後點「一貫完成」，系統依序倒數計時並語音提示</p>
+      <p>・完成記錄自動存入後台資料庫</p>
+    </div>
+
   </div>
 
-  <!-- Link back to rehab system -->
-  <a href="https://cyysongyy.github.io/5-steps-rehab-for-footdrop/" 
-     style="display:flex;align-items:center;gap:12px;padding:14px 16px;
-     background:#fff;border-radius:var(--ra);border:1.5px solid var(--border);
-     text-decoration:none;color:var(--tx);box-shadow:var(--shadow)">
-    <i class="ti ti-arrow-left" style="font-size:18px;color:var(--purple)"></i>
-    <div>
-      <div style="font-size:13px;font-weight:600">返回復健系統</div>
-      <div style="font-size:11.5px;color:var(--tx3)">5-steps-rehab-for-footdrop</div>
+  <!-- ── Tab: History ── -->
+  <div class="tab-content" id="tabHistory">
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-chart-area"></i>統計摘要</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-lbl">本週測量次數</div>
+          <div class="stat-val" id="statWeek">--</div>
+          <div class="stat-unit">次</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">平均平衡分</div>
+          <div class="stat-val" id="statAvg">--</div>
+          <div class="stat-unit">分</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">最佳分數</div>
+          <div class="stat-val" id="statBest">--</div>
+          <div class="stat-unit">分</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">訓練總時長</div>
+          <div class="stat-val" id="statTime">--</div>
+          <div class="stat-unit">分鐘</div>
+        </div>
+      </div>
+      <!-- Trend canvas -->
+      <div class="card-title" style="margin-bottom:6px"><i class="ti ti-trending-up"></i>近期平衡趨勢</div>
+      <div class="trend-wrap"><canvas id="trendCanvas"></canvas></div>
     </div>
-    <i class="ti ti-external-link" style="margin-left:auto;color:var(--tx3);font-size:15px"></i>
+
+    <!-- History list -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-list"></i>測量記錄</div>
+      <div id="histList"><div class="empty-hist">尚無記錄</div></div>
+      <button class="export-btn" onclick="exportCSV()">
+        <i class="ti ti-download"></i>匯出 CSV
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Back link -->
+  <a href="https://cyysongyy.github.io/5-steps-rehab-for-footdrop/" class="back-link">
+    <i class="ti ti-arrow-left"></i>
+    <div class="back-link-text">
+      <div>返回復健系統</div>
+      <div>5-steps-rehab-for-footdrop</div>
+    </div>
+    <i class="ti ti-external-link" style="color:var(--tx3);font-size:15px"></i>
   </a>
 
-  <p style="text-align:center;font-size:11px;color:var(--tx3);line-height:1.8;padding:0 8px 8px">
+  <p style="text-align:center;font-size:11px;color:var(--tx3);line-height:1.8;padding:0 8px 4px">
     本工具僅供個人輔助訓練參考，不構成醫療診斷建議。<br>
     若訓練中出現疼痛、頭暈或不適，請立即停止並就醫。<br>
     版本：2026.07
   </p>
 
-</div>
+</div><!-- .app -->
 
-<!-- Exercise Timer Overlay -->
-<div class="timer-overlay" id="timerOverlay">
-  <div class="timer-box">
-    <div class="timer-ex-name" id="timerName">—</div>
-    <div class="timer-ex-desc" id="timerDesc">—</div>
-    <div style="position:relative;width:160px;height:160px;margin:0 auto">
-      <svg width="160" height="160" viewBox="0 0 160 160">
-        <circle class="timer-trk" cx="80" cy="80" r="66"/>
-        <circle class="timer-fill" id="timerRing" cx="80" cy="80" r="66"
-          stroke-dasharray="414.7" stroke-dashoffset="0"/>
+<!-- Timer Overlay -->
+<div class="overlay" id="timerOverlay">
+  <div class="ov-box">
+    <div class="ov-step" id="ovStep">動作 1 / 1</div>
+    <div class="ov-name" id="ovName">—</div>
+    <div class="ov-tip" id="ovTip">—</div>
+    <div class="ov-ring">
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle class="ov-trk" cx="75" cy="75" r="62"/>
+        <circle class="ov-fil" id="ovRing" cx="75" cy="75" r="62"
+          stroke-dasharray="389.6" stroke-dashoffset="0"/>
       </svg>
-      <div class="timer-num">
-        <div class="timer-count" id="timerCount">--</div>
-        <div class="timer-unit">秒</div>
+      <div class="ov-num">
+        <div class="ov-count" id="ovCount">--</div>
+        <div class="ov-unit">秒</div>
       </div>
     </div>
-    <div class="timer-phase" id="timerPhase" style="color:var(--purple)">—</div>
-    <div class="timer-cue" id="timerCue"></div>
-    <button class="timer-cancel" onclick="cancelExercise()">取消</button>
+    <div class="ov-phase" id="ovPhase">準備中</div>
+    <div class="ov-cue" id="ovCue"></div>
+    <div class="ov-prog-wrap" id="ovProgDots"></div>
+    <button class="ov-cancel" onclick="cancelBatch()">取消訓練</button>
   </div>
 </div>
 
 <script>
-// ── Constants ──
-const C_RING = 2 * Math.PI * 58;  // balance ring
-const C_TIMER = 2 * Math.PI * 66; // exercise timer ring
+/* ══════════════════════════════════════════
+   IndexedDB Backend
+══════════════════════════════════════════ */
+const DB_NAME = 'gaitDB';
+const DB_VER  = 1;
+let _db = null;
 
-// ── State ──
-let isMonitoring = false;
-let gammaData = [];
-let betaData = [];
-let sessionStart = null;
-let sessionTimer = null;
-let maxSway = 0;
-let permGranted = false;
-let history = JSON.parse(localStorage.getItem('gaitHistory') || '[]');
-let exTimer = null;
-let currentEx = null;
-let voiceOn = true;
+function openDB(){
+  return new Promise((res,rej) => {
+    if(_db) return res(_db);
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('sessions')){
+        const s = db.createObjectStore('sessions',{keyPath:'id',autoIncrement:true});
+        s.createIndex('date','date');
+        s.createIndex('type','type');
+      }
+      if(!db.objectStoreNames.contains('exercises')){
+        db.createObjectStore('exercises',{keyPath:'id',autoIncrement:true});
+      }
+      if(!db.objectStoreNames.contains('settings')){
+        db.createObjectStore('settings',{keyPath:'key'});
+      }
+    };
+    r.onsuccess = e => { _db = e.target.result; res(_db); };
+    r.onerror   = e => rej(e.target.error);
+  });
+}
 
-// ── Exercises ──
+async function dbPut(store, data){
+  const db = await openDB();
+  return new Promise((res,rej) => {
+    const tx = db.transaction(store,'readwrite');
+    const req = tx.objectStore(store).put(data);
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function dbGetAll(store){
+  const db = await openDB();
+  return new Promise((res,rej) => {
+    const tx = db.transaction(store,'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function dbGetSetting(key, def){
+  const db = await openDB();
+  return new Promise(res => {
+    const tx = db.transaction('settings','readonly');
+    const req = tx.objectStore('settings').get(key);
+    req.onsuccess = () => res(req.result ? req.result.value : def);
+    req.onerror   = () => res(def);
+  });
+}
+
+async function dbSaveSetting(key, value){
+  await dbPut('settings', {key, value});
+}
+
+/* ══════════════════════════════════════════
+   Exercise Data
+══════════════════════════════════════════ */
 const EXERCISES = [
-  {
-    id:'e1', name:'單腳站立（患腳）', icon:'ti-shoe-off',
-    desc:'扶椅背，右腳單腳站立，保持平衡',
-    dur:20, rest:5,
-    cues:['開始，右腳站穩', '保持骨盆水平', '感受腳底穩定感'],
-    tip:'垂足術後重要：腳跟先著地，感受腳底與地面的接觸'
-  },
-  {
-    id:'e2', name:'腳跟—腳尖走路', icon:'ti-walk',
-    desc:'沿直線走，腳跟踩在前腳尖後方',
-    dur:30, rest:5,
-    cues:['開始，腳跟踩在腳尖後方', '眼睛看前方', '放慢步速，感受每一步'],
-    tip:'改善步態滾動感，對垂足代償非常有效'
-  },
-  {
-    id:'e3', name:'側向移重（左右）', icon:'ti-arrows-horizontal',
-    desc:'站立，緩慢將重心移到右腳再回左腳',
-    dur:40, rest:5,
-    cues:['開始，緩慢移重到右腳', '感受右腳承重', '回到左腳，再來回'],
-    tip:'改善左右負重不均，對腰椎術後代償很重要'
-  },
-  {
-    id:'e4', name:'前後移重', icon:'ti-arrows-vertical',
-    desc:'站立，重心從腳跟慢慢移到腳尖再回來',
-    dur:30, rest:5,
-    cues:['開始，重心在腳跟', '慢慢移到腳尖', '再移回腳跟，感受足弓'],
-    tip:'重建步態滾動感，對腳底知覺訓練很有幫助'
-  },
-  {
-    id:'e5', name:'閉眼站立', icon:'ti-eye-off',
-    desc:'雙腳站立，閉眼10秒，挑戰本體覺',
-    dur:15, rest:5,
-    cues:['閉上眼睛', '感受腳底與地面的接觸', '核心微收，保持穩定'],
-    tip:'進階訓練：去除視覺後的平衡調整，需有人在旁'
-  },
+  {id:'e1', name:'單腳站立（患腳）', icon:'ti-shoe-off',
+   desc:'扶椅背，右腳單腳站立，保持平衡',
+   defaultDur:20,
+   cues:['開始，右腳站穩，扶著椅背','保持骨盆水平，核心微收','感受腳底穩定感'],
+   tip:'垂足術後重要：腳跟先著地，感受腳底與地面接觸'},
+  {id:'e2', name:'腳跟—腳尖走路', icon:'ti-walk',
+   desc:'沿直線走，腳跟踩在前腳尖後方',
+   defaultDur:30,
+   cues:['開始，腳跟踩在腳尖後方','眼睛看前方，放慢步速','感受每一步的滾動感'],
+   tip:'改善步態滾動感，對垂足代償非常有效'},
+  {id:'e3', name:'側向移重（左右）', icon:'ti-arrows-horizontal',
+   desc:'站立，緩慢將重心移到右腳再回左腳',
+   defaultDur:40,
+   cues:['開始，緩慢移重到右腳','感受右腳承重','回到左腳，再來回移動'],
+   tip:'改善左右負重不均，對腰椎術後代償很重要'},
+  {id:'e4', name:'前後移重', icon:'ti-arrows-vertical',
+   desc:'重心從腳跟慢慢移到腳尖再回來',
+   defaultDur:30,
+   cues:['開始，重心在腳跟','慢慢移到腳尖','再移回腳跟，感受足弓'],
+   tip:'重建步態滾動感，對腳底知覺訓練很有幫助'},
+  {id:'e5', name:'閉眼站立', icon:'ti-eye-off',
+   desc:'雙腳站立，閉眼15秒，挑戰本體覺',
+   defaultDur:15,
+   cues:['閉上眼睛','感受腳底與地面的接觸','核心微收，保持穩定'],
+   tip:'進階訓練：去除視覺後的平衡調整，需有人在旁'},
 ];
 
-let exDone = {};
+/* ══════════════════════════════════════════
+   State
+══════════════════════════════════════════ */
+let permGranted = false;
+let bgActive    = false;     // background sensor always on
+let isSession   = false;     // manual precision session
+let gammaArr    = [];
+let sessionStart = null;
+let sessionTimer  = null;
+let maxSway      = 0;
+let smoothG      = 0;
+let exDurs       = {};       // {id: seconds} user-adjusted
+let exSelected   = {};       // {id: bool}
+let exDone       = {};       // {id: bool}
+let adjOpen      = null;     // which ex has adjuster open
+let batchQueue   = [];
+let batchIdx     = 0;
+let batchTimer   = null;
+let currentTab   = 'balance';
+const C_RING = 2*Math.PI*54;
+const C_OV   = 2*Math.PI*62;
 
-// ── Permission ──
-window.addEventListener('load', () => {
-  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-    document.getElementById('permBanner').style.display = 'flex';
+/* ══════════════════════════════════════════
+   Init
+══════════════════════════════════════════ */
+async function init(){
+  await openDB();
+
+  // Load saved exercise durations
+  for(const ex of EXERCISES){
+    const saved = await dbGetSetting('dur_'+ex.id, ex.defaultDur);
+    exDurs[ex.id] = saved;
+  }
+
+  renderExercises();
+
+  // Permission check
+  if(typeof DeviceOrientationEvent !== 'undefined' &&
+     typeof DeviceOrientationEvent.requestPermission === 'function'){
+    document.getElementById('permCard').style.display = 'flex';
   } else {
     permGranted = true;
+    startBgSensor();
   }
-  renderExercises();
-  renderHistory();
-});
 
-function requestPerm() {
-  DeviceMotionEvent.requestPermission()
+  await updateHistory();
+  await updateStats();
+  drawTrend();
+}
+
+/* ══════════════════════════════════════════
+   Permission
+══════════════════════════════════════════ */
+function requestPerm(){
+  DeviceOrientationEvent.requestPermission()
     .then(s => {
-      if (s === 'granted') {
+      if(s === 'granted'){
         permGranted = true;
-        document.getElementById('permBanner').style.display = 'none';
-        setStatus('normal', 'ti-check', '權限已授予，可以開始測量。');
+        document.getElementById('permCard').style.display = 'none';
+        startBgSensor();
       }
-    }).catch(e => {
-      setStatus('alert', 'ti-x', '無法取得權限：' + e.message);
-    });
+    }).catch(e => setStatus('s-alert','ti-x','無法取得感測器權限：'+e.message));
 }
 
-// ── Sensor handling ──
-let smoothGamma = 0, smoothBeta = 0;
-
-function handleMotion(e) {
-  if (!isMonitoring) return;
-  const gamma = e.rotationRate ? null : null;
-  // Use DeviceOrientation for tilt
+/* ══════════════════════════════════════════
+   Background Sensor (always on)
+══════════════════════════════════════════ */
+function startBgSensor(){
+  if(bgActive) return;
+  bgActive = true;
+  window.addEventListener('deviceorientation', handleOrientation, true);
+  setDot('idle');
+  showTooltip('感測器啟動中…');
+  setTimeout(() => hideTooltip(), 2000);
 }
 
-function handleOrientation(e) {
-  if (!isMonitoring) return;
-  const gamma = e.gamma || 0; // left/right tilt −90~90
-  const beta  = e.beta  || 0; // front/back tilt
+let lastScoreForSave = null;
+let bgSaveInterval = null;
 
-  // Smooth with EMA
-  smoothGamma = smoothGamma * 0.8 + gamma * 0.2;
-  smoothBeta  = smoothBeta  * 0.8 + beta  * 0.2;
+function handleOrientation(e){
+  const g = e.gamma || 0;
+  smoothG = smoothG*0.8 + g*0.2;
+  gammaArr.push(smoothG);
+  if(gammaArr.length > 120) gammaArr.shift();
 
-  gammaData.push(smoothGamma);
-  betaData.push(smoothBeta);
-
-  // Sway = max - min over last 2s (60 samples at ~30fps → use last 60)
-  const window60 = gammaData.slice(-60);
+  const window60 = gammaArr.slice(-60);
   const sway = window60.length > 1
-    ? Math.max(...window60) - Math.min(...window60)
-    : 0;
-  if (sway > maxSway) maxSway = sway;
+    ? Math.max(...window60) - Math.min(...window60) : 0;
+  if(sway > maxSway) maxSway = sway;
 
-  updateDisplay(smoothGamma, sway);
+  const score = calcScore(smoothG, sway);
+
+  // Update header score always
+  document.getElementById('hdrScore').textContent = score;
+
+  // Update dot
+  if(score >= 80)       setDot('good');
+  else if(score >= 60)  setDot('warn');
+  else                  setDot('bad');
+
+  // Update balance tab if visible
+  if(currentTab === 'balance'){
+    updateBalanceDisplay(smoothG, sway, score);
+  }
+
+  // Auto-save background reading every 60s
+  lastScoreForSave = {score, sway: sway.toFixed(1), gamma: smoothG.toFixed(1)};
 }
 
-function updateDisplay(gamma, sway) {
-  // Gamma: negative = left tilt, positive = right tilt
-  const clampedGamma = Math.max(-30, Math.min(30, gamma));
-  const needlePos = 50 + (clampedGamma / 30) * 50; // 0–100%
-  const fillPct   = 50 + (clampedGamma / 30) * 50;
+// Auto-save every 60 seconds
+setInterval(async () => {
+  if(!lastScoreForSave || !bgActive) return;
+  const {score, sway, gamma} = lastScoreForSave;
+  await saveRecord({
+    type:'background',
+    score, sway, gamma,
+    dur: 60,
+    date: new Date().toISOString(),
+    dateLabel: todayLabel()
+  });
+  // Refresh history if on that tab
+  if(currentTab === 'history'){
+    await updateHistory();
+    await updateStats();
+    drawTrend();
+  }
+}, 60000);
 
-  document.getElementById('barNeedle').style.left = needlePos + '%';
-  document.getElementById('barFill').style.width  = fillPct + '%';
-  document.getElementById('valLeft').textContent   = Math.max(0, -gamma).toFixed(1);
-  document.getElementById('valCenter').textContent = gamma.toFixed(1);
-  document.getElementById('valSway').textContent   = sway.toFixed(1);
+function calcScore(gamma, sway){
+  return Math.max(0, Math.min(100, Math.round(100 - Math.abs(gamma)*2 - sway*3)));
+}
 
-  // Score: 100 − (|gamma|*2 + sway*3), clamped 0–100
-  const rawScore = Math.max(0, Math.min(100, 100 - Math.abs(gamma) * 2 - sway * 3));
-  const score = Math.round(rawScore);
+function updateBalanceDisplay(gamma, sway, score){
+  const clamp = Math.max(-30, Math.min(30, gamma));
+  const pos = 50 + (clamp/30)*50;
+  document.getElementById('barNeedle').style.left = pos+'%';
+  document.getElementById('barFill').style.width  = pos+'%';
+  document.getElementById('valL').textContent = Math.max(0,-gamma).toFixed(1);
+  document.getElementById('valC').textContent = gamma.toFixed(1);
+  document.getElementById('valS').textContent = sway.toFixed(1);
+
   const C = C_RING;
-  document.getElementById('ringFill').style.strokeDashoffset = C * (1 - score / 100);
+  document.getElementById('ringFil').style.strokeDashoffset = C*(1-score/100);
   document.getElementById('ringScore').textContent = score;
 
-  let grade, gradeColor, ringColor;
-  if (score >= 85)      { grade='優秀'; gradeColor='#16a34a'; ringColor='var(--green)'; }
-  else if (score >= 70) { grade='良好'; gradeColor='#1d4ed8'; ringColor='var(--purple)'; }
-  else if (score >= 55) { grade='普通'; gradeColor='#a16207'; ringColor='var(--amber)'; }
-  else                  { grade='需加強'; gradeColor='#991b1b'; ringColor='var(--red)'; }
+  let grade, gc, rc;
+  if(score>=85){grade='優秀';gc='var(--greend)';rc='var(--green)';}
+  else if(score>=70){grade='良好';gc='var(--purpled)';rc='var(--purple)';}
+  else if(score>=55){grade='普通';gc='#a16207';rc='var(--amber)';}
+  else{grade='需加強';gc='#991b1b';rc='var(--red)';}
 
   document.getElementById('ringGrade').textContent = grade;
-  document.getElementById('ringGrade').style.color = gradeColor;
-  document.getElementById('ringFill').style.stroke  = ringColor;
+  document.getElementById('ringGrade').style.color = gc;
+  document.getElementById('ringFil').style.stroke  = rc;
 
-  // Status
-  if (Math.abs(gamma) < 3 && sway < 4) {
-    setStatus('good', 'ti-circle-check', '平衡良好！繼續保持正常步態。');
-  } else if (Math.abs(gamma) > 12 || sway > 12) {
-    setStatus('alert', 'ti-alert-triangle', `偏斜明顯（${gamma.toFixed(1)}°），留意步態代償。`);
-  } else {
-    setStatus('warning', 'ti-alert-circle', `輕微偏移（${gamma.toFixed(1)}°），專注中立步態。`);
-  }
+  if(Math.abs(gamma)<3 && sway<4)
+    setStatus('s-good','ti-circle-check','平衡良好！步態穩定。');
+  else if(Math.abs(gamma)>12 || sway>14)
+    setStatus('s-alert','ti-alert-triangle',`偏斜明顯（${gamma.toFixed(1)}°），留意步態代償。`);
+  else
+    setStatus('s-warn','ti-alert-circle',`輕微偏移（${gamma.toFixed(1)}°），專注中立步態。`);
 }
 
-// ── Measurement control ──
-function startMeasure() {
-  if (!permGranted) {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission()
-        .then(s => { if (s === 'granted') { permGranted = true; startMeasure(); } })
-        .catch(() => setStatus('alert', 'ti-x', '需要先授予感測器權限'));
-      return;
-    }
-    permGranted = true; // Android / desktop — no permission needed
-  }
-
-  isMonitoring = true;
-  gammaData = []; betaData = [];
-  maxSway = 0;
+/* ══════════════════════════════════════════
+   Manual Session
+══════════════════════════════════════════ */
+function startSession(){
+  if(isSession) return;
+  if(!permGranted){ requestPerm(); return; }
+  isSession = true;
+  gammaArr = []; maxSway = 0; smoothG = 0;
   sessionStart = Date.now();
-  smoothGamma = 0; smoothBeta = 0;
-
-  window.addEventListener('deviceorientation', handleOrientation);
-
   document.getElementById('btnStart').disabled = true;
-  document.getElementById('btnStop').disabled = false;
-  setStatus('normal', 'ti-activity', '測量中… 直立手持手機，正常步行或站立。');
-
-  // Session timer
+  document.getElementById('btnStop').disabled  = false;
+  setStatus('s-normal','ti-activity','精準測量中… 直立手持手機，正常步行或站立。');
   let elapsed = 0;
   sessionTimer = setInterval(() => {
     elapsed++;
-    const m = Math.floor(elapsed / 60), s = elapsed % 60;
-    const timeStr = m > 0 ? `${m}分${s.toString().padStart(2,'0')}秒` : `${s}秒`;
-    const latest = gammaData[gammaData.length-1] || 0;
-    const sway60 = gammaData.slice(-60);
-    const sway = sway60.length > 1 ? Math.max(...sway60) - Math.min(...sway60) : 0;
-    const score = Math.max(0, Math.min(100, Math.round(100 - Math.abs(latest)*2 - sway*3)));
+    const s = calcScore(smoothG, maxSway);
     document.getElementById('statusText').textContent =
-      `測量中 ${timeStr}・目前分數 ${score}・最大晃動 ${maxSway.toFixed(1)}°`;
+      `測量中 ${elapsed}秒・目前 ${s}分・最大晃動 ${maxSway.toFixed(1)}°`;
   }, 1000);
 }
 
-function stopMeasure() {
-  if (!isMonitoring) return;
-  isMonitoring = false;
-  window.removeEventListener('deviceorientation', handleOrientation);
+async function stopSession(){
+  if(!isSession) return;
+  isSession = false;
   clearInterval(sessionTimer);
-
   document.getElementById('btnStart').disabled = false;
-  document.getElementById('btnStop').disabled = true;
-
-  if (gammaData.length === 0) {
-    setStatus('normal', 'ti-info-circle', '未偵測到感測器資料。請確認手機支援陀螺儀。');
-    return;
+  document.getElementById('btnStop').disabled  = true;
+  if(gammaArr.length === 0){
+    setStatus('s-normal','ti-info-circle','未偵測到資料，請確認手機支援陀螺儀。'); return;
   }
-
-  // Final score
-  const avgGamma = gammaData.reduce((a,b) => a+b, 0) / gammaData.length;
-  const score = Math.max(0, Math.min(100, Math.round(100 - Math.abs(avgGamma)*2 - maxSway*3)));
-  const dur = Math.round((Date.now() - sessionStart) / 1000);
+  const avg = gammaArr.reduce((a,b)=>a+b,0)/gammaArr.length;
+  const score = calcScore(avg, maxSway);
+  const dur = Math.round((Date.now()-sessionStart)/1000);
   const grade = score>=85?'優秀':score>=70?'良好':score>=55?'普通':'需加強';
-
-  // Save history
-  history.unshift({
-    date: new Date().toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}),
-    score, grade, sway: maxSway.toFixed(1), dur
+  await saveRecord({
+    type:'session', score, grade, sway:maxSway.toFixed(1),
+    dur, date:new Date().toISOString(), dateLabel:todayLabel()
   });
-  if (history.length > 20) history.pop();
-  localStorage.setItem('gaitHistory', JSON.stringify(history));
-  renderHistory();
-
-  setStatus('good', 'ti-check', `測量完成！評分 ${score}（${grade}）・時長 ${dur}秒・最大晃動 ${maxSway.toFixed(1)}°`);
+  setStatus('s-good','ti-check',
+    `測量完成！${score}分（${grade}）・${dur}秒・最大晃動${maxSway.toFixed(1)}°`);
   spk(`測量完成，平衡評分${score}分，${grade}`);
+  await updateHistory(); await updateStats(); drawTrend();
+  if(currentTab !== 'history') switchTab('history');
 }
 
-function resetAll() {
-  isMonitoring = false;
-  window.removeEventListener('deviceorientation', handleOrientation);
-  clearInterval(sessionTimer);
-  gammaData = []; betaData = [];
-  maxSway = 0; smoothGamma = 0; smoothBeta = 0;
-  document.getElementById('btnStart').disabled = false;
-  document.getElementById('btnStop').disabled = true;
-  document.getElementById('ringFill').style.strokeDashoffset = C_RING;
+function resetDisplay(){
+  gammaArr = []; maxSway = 0; smoothG = 0;
+  document.getElementById('ringFil').style.strokeDashoffset = C_RING;
   document.getElementById('ringScore').textContent = '--';
   document.getElementById('ringGrade').textContent = '--';
   document.getElementById('ringGrade').style.color = 'var(--tx3)';
-  document.getElementById('barNeedle').style.left = '50%';
-  document.getElementById('barFill').style.width = '50%';
-  document.getElementById('valLeft').textContent = '--';
-  document.getElementById('valCenter').textContent = '--';
-  document.getElementById('valSway').textContent = '--';
-  setStatus('normal', 'ti-info-circle', '已重置。按下「開始測量」重新開始。');
+  ['barNeedle','barFill'].forEach(id => {
+    document.getElementById(id).style[id==='barNeedle'?'left':'width'] = '50%';
+  });
+  ['valL','valC','valS'].forEach(id => document.getElementById(id).textContent='--');
+  setStatus('s-normal','ti-info-circle','已重置。');
 }
 
-// ── Exercise module ──
-function renderExercises() {
-  const grid = document.getElementById('exGrid');
-  grid.innerHTML = EXERCISES.map((ex, i) => `
-    <div class="ex-item ${exDone[ex.id]?'done':''}" id="exItem_${ex.id}" onclick="startExercise('${ex.id}')">
-      <div class="ex-icon"><i class="ti ${exDone[ex.id]?'ti-check':ex.icon}"></i></div>
-      <div class="ex-text">
-        <div class="ex-name">${ex.name}</div>
-        <div class="ex-desc">${ex.desc}</div>
-      </div>
-      <div class="ex-dur">${exDone[ex.id]?'✓完成':ex.dur+'秒'}</div>
+/* ══════════════════════════════════════════
+   Exercise Rendering
+══════════════════════════════════════════ */
+function renderExercises(){
+  const list = document.getElementById('exList');
+  list.innerHTML = EXERCISES.map(ex => {
+    const dur = exDurs[ex.id] || ex.defaultDur;
+    const sel = exSelected[ex.id];
+    const done = exDone[ex.id];
+    return `
+<div class="ex-row ${done?'done':sel?'selected':''}" id="exRow_${ex.id}">
+  <div class="ex-top">
+    <div class="ex-cb" onclick="toggleEx('${ex.id}')">
+      ${done?'<i class="ti ti-check" style="font-size:11px"></i>':sel?'<i class="ti ti-check" style="font-size:11px"></i>':''}
     </div>
-  `).join('');
+    <i class="ti ${ex.icon} ex-icon"></i>
+    <div class="ex-info" onclick="toggleEx('${ex.id}')">
+      <div class="ex-name">${ex.name}</div>
+      <div class="ex-desc">${ex.desc}</div>
+    </div>
+    <div class="ex-dur-badge" onclick="toggleAdj('${ex.id}')">${dur}秒 ✎</div>
+  </div>
+  <div class="ex-adj ${adjOpen===ex.id?'show':''}" id="adj_${ex.id}">
+    <div class="adj-row">
+      <div class="adj-label">訓練時長</div>
+      <button class="adj-btn" onclick="adjustDur('${ex.id}',-5)">−</button>
+      <div class="adj-val" id="adjVal_${ex.id}">${dur}</div>
+      <button class="adj-btn" onclick="adjustDur('${ex.id}',5)">+</button>
+      <span style="font-size:12px;color:var(--tx3)">秒</span>
+    </div>
+  </div>
+  <div class="ex-prog" id="exProg_${ex.id}">
+    <div class="ex-prog-fill" id="exProgFill_${ex.id}" style="width:${done?'100':'0'}%"></div>
+  </div>
+</div>`;
+  }).join('');
+  updateBatchBar();
 }
 
-function startExercise(id) {
-  currentEx = EXERCISES.find(e => e.id === id);
-  if (!currentEx) return;
+function toggleEx(id){
+  if(exDone[id]) return;
+  exSelected[id] = !exSelected[id];
+  renderExercises();
+}
 
-  const overlay = document.getElementById('timerOverlay');
-  document.getElementById('timerName').textContent = currentEx.name;
-  document.getElementById('timerDesc').textContent = currentEx.tip;
-  document.getElementById('timerCount').textContent = currentEx.dur;
-  document.getElementById('timerPhase').textContent = '準備開始';
-  document.getElementById('timerCue').textContent = '';
-  document.getElementById('timerRing').style.strokeDashoffset = '0';
-  overlay.classList.add('show');
+function toggleAdj(id){
+  adjOpen = adjOpen === id ? null : id;
+  renderExercises();
+}
 
-  spk(currentEx.name + '，' + currentEx.cues[0]);
+async function adjustDur(id, delta){
+  const cur = exDurs[id] || EXERCISES.find(e=>e.id===id).defaultDur;
+  exDurs[id] = Math.max(10, Math.min(120, cur+delta));
+  await dbSaveSetting('dur_'+id, exDurs[id]);
+  document.getElementById('adjVal_'+id).textContent = exDurs[id];
+  // Also update badge
+  renderExercises();
+}
 
-  let rem = currentEx.dur;
-  let elapsed = 0;
-  const cueInterval = Math.floor(currentEx.dur / currentEx.cues.length);
+function toggleSelectAll(){
+  const anySelected = Object.values(exSelected).some(v=>v);
+  EXERCISES.forEach(ex => { if(!exDone[ex.id]) exSelected[ex.id] = !anySelected; });
+  renderExercises();
+}
 
-  document.getElementById('timerPhase').textContent = '進行中';
-  document.getElementById('timerPhase').style.color = 'var(--purple)';
+function updateBatchBar(){
+  const sel = EXERCISES.filter(e => exSelected[e.id] && !exDone[e.id]);
+  const total = sel.reduce((a,e) => a+(exDurs[e.id]||e.defaultDur), 0);
+  document.getElementById('selCount').textContent = sel.length;
+  document.getElementById('selTime').textContent  = total;
+  document.getElementById('btnBatch').disabled = sel.length === 0;
+}
 
-  exTimer = setInterval(() => {
-    rem--;
-    elapsed++;
-    document.getElementById('timerCount').textContent = rem;
-    document.getElementById('timerRing').style.strokeDashoffset =
-      C_TIMER * (rem / currentEx.dur);
+/* ══════════════════════════════════════════
+   Batch Exercise Runner
+══════════════════════════════════════════ */
+function startBatch(){
+  batchQueue = EXERCISES.filter(e => exSelected[e.id] && !exDone[e.id]);
+  if(!batchQueue.length) return;
+  batchIdx = 0;
+  document.getElementById('timerOverlay').classList.add('show');
+  // Progress dots
+  const dots = document.getElementById('ovProgDots');
+  dots.innerHTML = batchQueue.map((_,i) =>
+    `<div class="ov-prog-dot ${i===0?'active':''}" id="dot_${i}"></div>`
+  ).join('');
+  runBatchStep(0);
+}
 
-    // Voice cues at intervals
-    const cueIdx = Math.floor(elapsed / cueInterval);
-    if (cueIdx > 0 && cueIdx < currentEx.cues.length && elapsed % cueInterval === 0) {
-      spk(currentEx.cues[cueIdx]);
-      document.getElementById('timerCue').textContent = currentEx.cues[cueIdx];
+function runBatchStep(idx){
+  if(idx >= batchQueue.length){
+    finishBatch(); return;
+  }
+  batchIdx = idx;
+  const ex = batchQueue[idx];
+  const dur = exDurs[ex.id] || ex.defaultDur;
+
+  // Update overlay
+  document.getElementById('ovStep').textContent = `動作 ${idx+1} / ${batchQueue.length}`;
+  document.getElementById('ovName').textContent = ex.name;
+  document.getElementById('ovTip').textContent  = ex.tip;
+  document.getElementById('ovCount').textContent = dur;
+  document.getElementById('ovPhase').textContent = '進行中';
+  document.getElementById('ovPhase').style.color = 'var(--purple)';
+  document.getElementById('ovCue').textContent   = '';
+  document.getElementById('ovRing').style.strokeDashoffset = '0';
+
+  // Progress dots
+  batchQueue.forEach((_,i) => {
+    const d = document.getElementById('dot_'+i);
+    if(d) d.className = 'ov-prog-dot ' + (i<idx?'done':i===idx?'active':'');
+  });
+
+  // Mark as running
+  document.querySelector(`#exRow_${ex.id}`)?.classList.add('running');
+
+  spk(ex.name + '，' + ex.cues[0]);
+
+  let rem = dur, elapsed = 0;
+  const cueStep = Math.floor(dur / ex.cues.length);
+
+  batchTimer = setInterval(() => {
+    rem--; elapsed++;
+    const el = document.getElementById('ovCount');
+    const rf = document.getElementById('ovRing');
+    if(!el){ clearInterval(batchTimer); return; }
+    el.textContent = rem;
+    if(rf) rf.style.strokeDashoffset = C_OV * (rem/dur);
+
+    // Update ex row progress bar
+    const pf = document.getElementById('exProgFill_'+ex.id);
+    if(pf) pf.style.width = ((elapsed/dur)*100)+'%';
+
+    // Voice cues
+    if(elapsed % cueStep === 0){
+      const ci = Math.floor(elapsed/cueStep);
+      if(ci < ex.cues.length) spk(ex.cues[ci]);
+      const cueEl = document.getElementById('ovCue');
+      if(cueEl && ci < ex.cues.length) cueEl.textContent = ex.cues[ci];
     }
 
-    if (rem <= 0) {
-      clearInterval(exTimer); exTimer = null;
-      document.getElementById('timerPhase').textContent = '完成！';
-      document.getElementById('timerPhase').style.color = 'var(--green)';
-      document.getElementById('timerCue').textContent = '做得很好！';
-      spk(currentEx.name + '完成，做得很好');
-      exDone[currentEx.id] = true;
-      setTimeout(() => {
-        overlay.classList.remove('show');
-        renderExercises();
-      }, 1800);
+    if(rem <= 0){
+      clearInterval(batchTimer); batchTimer = null;
+      exDone[ex.id] = true;
+      exSelected[ex.id] = false;
+      document.querySelector(`#exRow_${ex.id}`)?.classList.remove('running');
+      renderExercises();
+
+      // Save exercise record
+      saveRecord({
+        type:'exercise', exId:ex.id, exName:ex.name,
+        dur, date:new Date().toISOString(), dateLabel:todayLabel()
+      });
+
+      if(idx+1 < batchQueue.length){
+        // Rest 3s between exercises
+        document.getElementById('ovPhase').textContent = '換下一個…';
+        document.getElementById('ovPhase').style.color = 'var(--amber)';
+        document.getElementById('ovCount').textContent = '3';
+        let rest = 3;
+        const restT = setInterval(() => {
+          rest--;
+          const el2 = document.getElementById('ovCount');
+          if(el2) el2.textContent = rest;
+          if(rest<=0){ clearInterval(restT); runBatchStep(idx+1); }
+        }, 1000);
+      } else {
+        finishBatch();
+      }
     }
   }, 1000);
 }
 
-function cancelExercise() {
-  if (exTimer) { clearInterval(exTimer); exTimer = null; }
+async function finishBatch(){
+  document.getElementById('timerOverlay').classList.remove('show');
+  spk('所有訓練動作完成，做得很好！');
+  exDone = {};
+  await updateHistory(); await updateStats(); drawTrend();
+  renderExercises();
+}
+
+function cancelBatch(){
+  if(batchTimer){ clearInterval(batchTimer); batchTimer=null; }
   document.getElementById('timerOverlay').classList.remove('show');
   window.speechSynthesis && window.speechSynthesis.cancel();
+  exDone = {}; renderExercises();
 }
 
-// ── History ──
-function renderHistory() {
-  const list = document.getElementById('historyList');
-  if (!history.length) {
-    list.innerHTML = '<div class="empty-state">尚無測量記錄</div>';
-    return;
-  }
-  list.innerHTML = history.slice(0, 8).map(h => `
-    <div class="history-row">
-      <div>
-        <div style="font-size:12.5px;font-weight:600;color:var(--tx)">${h.date}</div>
-        <div style="font-size:11px;color:var(--tx3)">時長 ${h.dur}秒・晃動 ${h.sway}°</div>
-      </div>
-      <div class="history-score-badge ${h.score>=85?'score-ex':h.score>=70?'score-gd':h.score>=55?'score-ok':'score-nd'}">
-        ${h.score} · ${h.grade}
-      </div>
-    </div>
-  `).join('');
+/* ══════════════════════════════════════════
+   Database / History
+══════════════════════════════════════════ */
+async function saveRecord(data){
+  await dbPut('sessions', data);
 }
 
-// ── Utilities ──
-function setStatus(type, icon, text) {
-  const box = document.getElementById('statusBox');
-  box.className = 'status ' + type;
-  box.innerHTML = `<i class="ti ${icon}"></i><span id="statusText">${text}</span>`;
+async function updateHistory(){
+  const all = await dbGetAll('sessions');
+  all.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  const list = document.getElementById('histList');
+  if(!all.length){ list.innerHTML='<div class="empty-hist">尚無記錄</div>'; return; }
+
+  // Group by date label
+  const groups = {};
+  all.slice(0,50).forEach(r => {
+    const lbl = r.dateLabel || r.date?.slice(0,10) || '未知';
+    if(!groups[lbl]) groups[lbl] = [];
+    groups[lbl].push(r);
+  });
+
+  list.innerHTML = Object.entries(groups).map(([day, rows]) => `
+    <div class="day-group">
+      <div class="day-label">${day}</div>
+      ${rows.map(r => {
+        const time = r.date ? new Date(r.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '--';
+        if(r.type==='exercise') return `
+          <div class="hist-row">
+            <div class="hist-time">${time}</div>
+            <div class="hist-info">
+              <div class="hist-type">🏋️ ${r.exName}</div>
+              <div class="hist-detail">${r.dur}秒</div>
+            </div>
+            <div class="score-badge sb-gd">訓練</div>
+          </div>`;
+        const sc = r.score||0;
+        const cls = sc>=85?'sb-ex':sc>=70?'sb-gd':sc>=55?'sb-ok':'sb-nd';
+        const tag = r.type==='background'?'背景':'測量';
+        return `
+          <div class="hist-row">
+            <div class="hist-time">${time}</div>
+            <div class="hist-info">
+              <div class="hist-type">⚖️ ${tag}</div>
+              <div class="hist-detail">晃動${r.sway}° · ${r.dur}秒</div>
+            </div>
+            <div class="score-badge ${cls}">${sc}<span class="sb-ex-label">${r.grade||''}</span></div>
+          </div>`;
+      }).join('')}
+    </div>`).join('');
 }
 
-function spk(text) {
-  if (!window.speechSynthesis) return;
+async function updateStats(){
+  const all = await dbGetAll('sessions');
+  const now = new Date();
+  const weekAgo = new Date(now - 7*24*3600*1000);
+  const weekSessions = all.filter(r => new Date(r.date) > weekAgo && r.type==='session');
+  const scores = weekSessions.filter(r=>r.score).map(r=>r.score);
+  const exRecs = all.filter(r=>r.type==='exercise');
+  const totalExTime = exRecs.reduce((a,r)=>a+(r.dur||0),0);
+
+  document.getElementById('statWeek').textContent = weekSessions.length || '0';
+  document.getElementById('statAvg').textContent  = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '--';
+  document.getElementById('statBest').textContent = scores.length ? Math.max(...scores) : '--';
+  document.getElementById('statTime').textContent = Math.round(totalExTime/60) || '0';
+}
+
+async function exportCSV(){
+  const all = await dbGetAll('sessions');
+  const csv = ['日期,類型,分數,晃動,時長(秒)']
+    .concat(all.map(r => [
+      r.date, r.type, r.score||'', r.sway||'', r.dur||''
+    ].join(',')))
+    .join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='gait_history.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ══════════════════════════════════════════
+   Trend Chart
+══════════════════════════════════════════ */
+async function drawTrend(){
+  const canvas = document.getElementById('trendCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width  = canvas.offsetWidth  * devicePixelRatio;
+  canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+
+  const all = await dbGetAll('sessions');
+  const pts = all.filter(r=>r.score&&r.type==='session')
+    .sort((a,b)=>new Date(a.date)-new Date(b.date))
+    .slice(-14).map(r=>r.score);
+
+  if(pts.length < 2){ ctx.fillStyle='#ccc';ctx.font='12px DM Sans';ctx.fillText('資料不足',W/2-30,H/2); return; }
+
+  ctx.clearRect(0,0,W,H);
+  const pad=8, step=(W-pad*2)/(pts.length-1);
+
+  // Grid line at 70
+  const y70 = H - pad - ((70/100)*(H-pad*2));
+  ctx.strokeStyle='#e4e6f0'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(pad,y70); ctx.lineTo(W-pad,y70); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Line
+  ctx.beginPath();
+  pts.forEach((v,i)=>{
+    const x=pad+i*step, y=H-pad-((v/100)*(H-pad*2));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle='#667eea'; ctx.lineWidth=2; ctx.stroke();
+
+  // Dots
+  pts.forEach((v,i)=>{
+    const x=pad+i*step, y=H-pad-((v/100)*(H-pad*2));
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle = v>=85?'#22c55e':v>=70?'#667eea':v>=55?'#f59e0b':'#ef4444';
+    ctx.fill();
+  });
+}
+
+/* ══════════════════════════════════════════
+   Dot / Tooltip
+══════════════════════════════════════════ */
+function setDot(cls){
+  const d = document.getElementById('bgDot');
+  d.className = cls;
+  const icons = {good:'✅',warn:'⚠️',bad:'🔴',idle:'⚖️'};
+  d.textContent = icons[cls] || '⚖️';
+}
+
+function dotTap(){
+  const tt = document.getElementById('bgTooltip');
+  const g = smoothG.toFixed(1);
+  const score = lastScoreForSave?.score || '--';
+  tt.textContent = `平衡分 ${score} · 偏移 ${g}°`;
+  tt.classList.add('show');
+  setTimeout(()=>tt.classList.remove('show'), 2500);
+}
+
+function showTooltip(msg){
+  const tt = document.getElementById('bgTooltip');
+  tt.textContent = msg; tt.classList.add('show');
+}
+function hideTooltip(){
+  document.getElementById('bgTooltip').classList.remove('show');
+}
+
+/* ══════════════════════════════════════════
+   Tabs
+══════════════════════════════════════════ */
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='history'){ updateHistory(); updateStats(); drawTrend(); }
+}
+
+/* ══════════════════════════════════════════
+   Utilities
+══════════════════════════════════════════ */
+function setStatus(cls, icon, text){
+  const b = document.getElementById('statusBox');
+  b.className = 'status '+cls;
+  b.innerHTML = `<i class="ti ${icon}"></i><span id="statusText">${text}</span>`;
+}
+
+function spk(text){
+  if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'zh-TW'; u.rate = 0.9;
+  u.lang='zh-TW'; u.rate=0.9;
   window.speechSynthesis.speak(u);
 }
 
-// Init
-renderExercises();
-renderHistory();
+function todayLabel(){
+  return new Date().toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'});
+}
+
+// Start
+init();
 </script>
 </body>
 </html>
