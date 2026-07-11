@@ -672,19 +672,14 @@ async function init(){
    Permission
 ══════════════════════════════════════════ */
 function requestPerm(){
-  // Request both orientation and motion permission (iOS 13+)
-  const permOri = typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission
-    ? DeviceOrientationEvent.requestPermission() : Promise.resolve('granted');
-  const permMot = typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission
-    ? DeviceMotionEvent.requestPermission() : Promise.resolve('granted');
-
-  Promise.all([permOri, permMot]).then(([s1, s2]) => {
-    if(s1==='granted' || s2==='granted'){
-      permGranted = true;
-      document.getElementById('permCard').style.display = 'none';
-      startBgSensor();
-    }
-  }).catch(e => setStatus('s-alert','ti-x','無法取得感測器權限：'+e.message));
+  DeviceOrientationEvent.requestPermission()
+    .then(s => {
+      if(s === 'granted'){
+        permGranted = true;
+        document.getElementById('permCard').style.display = 'none';
+        startBgSensor();
+      }
+    }).catch(e => setStatus('s-alert','ti-x','無法取得感測器權限：'+e.message));
 }
 
 /* ══════════════════════════════════════════
@@ -694,9 +689,11 @@ function startBgSensor(){
   if(bgActive) return;
   bgActive = true;
   window.addEventListener('deviceorientation', handleOrientation, true);
+  window.addEventListener('devicemotion', handleMotion, true);
   setDot('idle');
-  showTooltip('感測器啟動中…');
-  setTimeout(() => hideTooltip(), 2000);
+  showTooltip('移動手機自動記錄');
+  setTimeout(()=>hideTooltip(), 2500);
+  setAutoStatus('s-normal','ti-info-circle','靜止中，移動手機自動開始記錄');
 }
 
 let lastScoreForSave = null;
@@ -789,46 +786,73 @@ function updateBalanceDisplay(gamma, sway, score){
 /* ══════════════════════════════════════════
    Manual Session
 ══════════════════════════════════════════ */
+// ── Motion-triggered recording ──
+// Phone moves → auto-start; phone still for 4s → auto-save
+const MOTION_THRESH = 0.6;  // m/s² net acceleration above gravity
+const STILL_SEC     = 4;    // seconds of stillness before saving
+const MIN_DUR       = 5;    // minimum seconds to bother saving
+
+let accelSmooth = 0;
+let isMoving    = false;
+let stillTimer  = null;
+
+function handleMotion(e){
+  const a = e.accelerationIncludingGravity || {};
+  const x = a.x||0, y = a.y||0, z = a.z||0;
+  const raw = Math.abs(Math.sqrt(x*x+y*y+z*z) - 9.81);
+  accelSmooth = accelSmooth*0.75 + raw*0.25;
+
+  if(accelSmooth > MOTION_THRESH){
+    // Moving
+    if(stillTimer){ clearTimeout(stillTimer); stillTimer=null; }
+    if(!isMoving){ isMoving=true; if(!isSession) startSession(); }
+  } else {
+    // Possibly still
+    if(isMoving && isSession && !stillTimer){
+      stillTimer = setTimeout(async ()=>{
+        stillTimer=null; isMoving=false;
+        await stopSession();
+      }, STILL_SEC*1000);
+    }
+  }
+}
+
 function startSession(){
-  if(isSession) return;
-  if(!permGranted){ requestPerm(); return; }
-  isSession = true;
-  gammaArr = []; maxSway = 0; smoothG = 0;
-  sessionStart = Date.now();
-  document.getElementById('btnStart').disabled = true;
-  document.getElementById('btnStop').disabled  = false;
-  setStatus('s-normal','ti-activity','精準測量中… 直立手持手機，正常步行或站立。');
-  let elapsed = 0;
-  sessionTimer = setInterval(() => {
+  if(isSession||!permGranted) return;
+  isSession=true;
+  gammaArr=[]; maxSway=0;
+  sessionStart=Date.now();
+  let elapsed=0;
+  setAutoStatus('s-normal','ti-activity','偵測到移動，記錄中…');
+  sessionTimer=setInterval(()=>{
     elapsed++;
-    const s = calcScore(smoothG, maxSway);
-    document.getElementById('statusText').textContent =
-      `測量中 ${elapsed}秒・目前 ${s}分・最大晃動 ${maxSway.toFixed(1)}°`;
-  }, 1000);
+    const s=calcScore(smoothG,maxSway);
+    setAutoStatus('s-normal','ti-activity',
+      `記錄中 ${elapsed}秒 · ${s}分 · 晃動${maxSway.toFixed(1)}°`);
+  },1000);
 }
 
 async function stopSession(){
   if(!isSession) return;
-  isSession = false;
+  isSession=false;
   clearInterval(sessionTimer);
-  document.getElementById('btnStart').disabled = false;
-  document.getElementById('btnStop').disabled  = true;
-  if(gammaArr.length === 0){
-    setStatus('s-normal','ti-info-circle','未偵測到資料，請確認手機支援陀螺儀。'); return;
+  const dur=Math.round((Date.now()-sessionStart)/1000);
+  if(gammaArr.length>0 && dur>=MIN_DUR){
+    const avg=gammaArr.reduce((a,b)=>a+b,0)/gammaArr.length;
+    const score=calcScore(avg,maxSway);
+    const grade=score>=85?'優秀':score>=70?'良好':score>=55?'普通':'需加強';
+    await saveRecord({
+      type:'session',score,grade,
+      sway:maxSway.toFixed(1),dur,
+      date:new Date().toISOString(),dateLabel:todayLabel()
+    });
+    setAutoStatus('s-good','ti-check',
+      `已記錄：${score}分（${grade}）・${dur}秒・晃動${maxSway.toFixed(1)}°`);
+    spk(`步態記錄完成，${score}分，${grade}`);
+    if(currentTab==='history'){await updateHistory();await updateStats();drawTrend();}
+  } else {
+    setAutoStatus('s-normal','ti-info-circle','靜止中，移動手機自動開始記錄');
   }
-  const avg = gammaArr.reduce((a,b)=>a+b,0)/gammaArr.length;
-  const score = calcScore(avg, maxSway);
-  const dur = Math.round((Date.now()-sessionStart)/1000);
-  const grade = score>=85?'優秀':score>=70?'良好':score>=55?'普通':'需加強';
-  await saveRecord({
-    type:'session', score, grade, sway:maxSway.toFixed(1),
-    dur, date:new Date().toISOString(), dateLabel:todayLabel()
-  });
-  setStatus('s-good','ti-check',
-    `測量完成！${score}分（${grade}）・${dur}秒・最大晃動${maxSway.toFixed(1)}°`);
-  spk(`測量完成，平衡評分${score}分，${grade}`);
-  await updateHistory(); await updateStats(); drawTrend();
-  if(currentTab !== 'history') switchTab('history');
 }
 
 function resetDisplay(){
