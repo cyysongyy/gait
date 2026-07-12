@@ -243,6 +243,35 @@ body{
 .sb-nd{background:var(--redl);color:#991b1b}
 .sb-ex-label{font-size:10px;display:block;margin-top:1px;opacity:.7}
 .empty-hist{text-align:center;padding:24px;font-size:13px;color:var(--tx3)}
+
+/* ── Daily summary cards ── */
+.day-card{background:var(--bg);border-radius:var(--ra2);border:1px solid var(--border);
+  padding:12px 14px;margin-bottom:10px}
+.day-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:2px}
+.day-label2{font-size:13px;font-weight:700;color:var(--tx)}
+.day-count{font-size:11px;color:var(--tx3)}
+.day-stats-row{display:flex;gap:6px;margin-bottom:12px}
+.day-stat{flex:1;text-align:center;background:var(--card);border-radius:8px;border:1px solid var(--border);padding:7px 2px}
+.ds-val{font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--tx);line-height:1}
+.ds-lbl{font-size:9px;color:var(--tx3);margin-top:3px}
+.lean-wrap{margin-top:2px}
+.lean-labels{display:flex;justify-content:space-between;font-size:9.5px;color:var(--tx3);margin-bottom:4px}
+.lean-track{width:100%;height:8px;border-radius:4px;position:relative;
+  background:linear-gradient(90deg,var(--red) 0%,var(--amber) 25%,var(--green) 50%,var(--amber) 75%,var(--red) 100%)}
+.lean-marker{position:absolute;top:-3px;width:5px;height:14px;background:var(--tx);
+  border-radius:2.5px;transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.lean-marker.lean-mid{background:var(--greend)}
+.lean-marker.lean-left{background:#b91c1c}
+.lean-marker.lean-right{background:#1d4ed8}
+.lean-text{font-size:11.5px;font-weight:600;margin-top:6px;color:var(--tx2)}
+.lean-text.lean-mid{color:var(--greend)}
+.lean-text.lean-left{color:#b91c1c}
+.lean-text.lean-right{color:#1d4ed8}
+.lean-summary-text{font-size:12.5px;color:var(--tx2);line-height:1.7;background:var(--bg);
+  border-radius:var(--ra2);border:1px solid var(--border);padding:10px 12px}
+.lean-summary-text.lean-mid{border-color:#86efac;background:var(--greenl)}
+.lean-summary-text.lean-left{border-color:#fca5a5;background:#fee2e2}
+.lean-summary-text.lean-right{border-color:#93c5fd;background:#dbeafe}
 .export-btn{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:var(--ra2);
   background:transparent;color:var(--tx2);font-size:13px;font-weight:600;
   cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -467,11 +496,15 @@ body{
       <!-- Trend canvas -->
       <div class="card-title" style="margin-bottom:6px"><i class="ti ti-trending-up"></i>近期平衡趨勢</div>
       <div class="trend-wrap"><canvas id="trendCanvas"></canvas></div>
+
+      <!-- Left/right lean summary -->
+      <div class="card-title" style="margin:14px 0 6px"><i class="ti ti-arrows-horizontal"></i>左右傾向分析（近7天）</div>
+      <div id="leanSummary" class="lean-summary-text">尚無足夠資料進行左右傾向分析</div>
     </div>
 
     <!-- History list -->
     <div class="card">
-      <div class="card-title"><i class="ti ti-list"></i>測量記錄</div>
+      <div class="card-title"><i class="ti ti-list"></i>測量記錄（每日）</div>
       <div id="histList"><div class="empty-hist">尚無記錄</div></div>
       <button class="export-btn" onclick="exportCSV()">
         <i class="ti ti-download"></i>匯出 CSV
@@ -843,7 +876,7 @@ async function stopSession(){
     const grade=score>=85?'優秀':score>=70?'良好':score>=55?'普通':'需加強';
     await saveRecord({
       type:'session',score,grade,
-      sway:maxSway.toFixed(1),dur,
+      sway:maxSway.toFixed(1),dur,gamma:avg.toFixed(1),
       date:new Date().toISOString(),dateLabel:todayLabel()
     });
     setAutoStatus('s-good','ti-check',
@@ -1063,49 +1096,75 @@ async function saveRecord(data){
   await dbPut('sessions', data);
 }
 
+/* ── Group raw records into per-day summaries ── */
+function computeDailyGroups(all){
+  const groups = {};
+  all.forEach(r => {
+    const lbl = r.dateLabel || r.date?.slice(0,10) || '未知';
+    if(!groups[lbl]) groups[lbl] = {label:lbl, dateRaw:r.date, readings:[], exercises:[]};
+    if(new Date(r.date) > new Date(groups[lbl].dateRaw)) groups[lbl].dateRaw = r.date;
+    if(r.type==='exercise') groups[lbl].exercises.push(r);
+    else groups[lbl].readings.push(r);
+  });
+  return Object.values(groups).map(g => {
+    const scores  = g.readings.filter(r=>r.score!=null).map(r=>r.score);
+    const gammas  = g.readings.filter(r=>r.gamma!=null).map(r=>parseFloat(r.gamma));
+    const sways   = g.readings.filter(r=>r.sway!=null).map(r=>parseFloat(r.sway));
+    const avgScore  = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+    const bestScore = scores.length ? Math.max(...scores) : null;
+    const avgGamma  = gammas.length ? gammas.reduce((a,b)=>a+b,0)/gammas.length : null;
+    const avgSway   = sways.length  ? sways.reduce((a,b)=>a+b,0)/sways.length : null;
+    const exTime    = g.exercises.reduce((a,r)=>a+(r.dur||0),0);
+    return {
+      label:g.label, dateRaw:g.dateRaw, count:g.readings.length,
+      avgScore, bestScore, avgGamma, avgSway,
+      exCount:g.exercises.length, exTime
+    };
+  }).sort((a,b) => new Date(b.dateRaw) - new Date(a.dateRaw));
+}
+
+/* ── Turn an avg gamma into a lean label/position ── */
+function leanLabel(g){
+  if(g==null) return {text:'資料不足', pos:50, cls:'lean-mid'};
+  const abs = Math.abs(g).toFixed(1);
+  const dir = g>1.5 ? '右' : (g<-1.5 ? '左' : null);
+  const sev = Math.abs(g)>=6 ? '明顯' : '輕微';
+  const text = dir ? `${sev}偏${dir}（平均${abs}°）` : `重心置中（平均${abs}°）`;
+  const clamp = Math.max(-15, Math.min(15, g));
+  const pos = 50 + (clamp/15)*50;
+  const cls = !dir ? 'lean-mid' : (g>0 ? 'lean-right' : 'lean-left');
+  return {text, pos, cls};
+}
+
 async function updateHistory(){
   const all = await dbGetAll('sessions');
-  all.sort((a,b) => new Date(b.date) - new Date(a.date));
-
   const list = document.getElementById('histList');
   if(!all.length){ list.innerHTML='<div class="empty-hist">尚無記錄</div>'; return; }
 
-  // Group by date label
-  const groups = {};
-  all.slice(0,50).forEach(r => {
-    const lbl = r.dateLabel || r.date?.slice(0,10) || '未知';
-    if(!groups[lbl]) groups[lbl] = [];
-    groups[lbl].push(r);
-  });
+  const days = computeDailyGroups(all).slice(0,21);
 
-  list.innerHTML = Object.entries(groups).map(([day, rows]) => `
-    <div class="day-group">
-      <div class="day-label">${day}</div>
-      ${rows.map(r => {
-        const time = r.date ? new Date(r.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '--';
-        if(r.type==='exercise') return `
-          <div class="hist-row">
-            <div class="hist-time">${time}</div>
-            <div class="hist-info">
-              <div class="hist-type">🏋️ ${r.exName}</div>
-              <div class="hist-detail">${r.dur}秒</div>
-            </div>
-            <div class="score-badge sb-gd">訓練</div>
-          </div>`;
-        const sc = r.score||0;
-        const cls = sc>=85?'sb-ex':sc>=70?'sb-gd':sc>=55?'sb-ok':'sb-nd';
-        const tag = r.type==='background'?'背景':'測量';
-        return `
-          <div class="hist-row">
-            <div class="hist-time">${time}</div>
-            <div class="hist-info">
-              <div class="hist-type">⚖️ ${tag}</div>
-              <div class="hist-detail">晃動${r.sway}° · ${r.dur}秒</div>
-            </div>
-            <div class="score-badge ${cls}">${sc}<span class="sb-ex-label">${r.grade||''}</span></div>
-          </div>`;
-      }).join('')}
-    </div>`).join('');
+  list.innerHTML = days.map(d => {
+    const lean = leanLabel(d.avgGamma);
+    const exMin = d.exTime ? Math.round(d.exTime/6)/10 : 0;
+    return `
+    <div class="day-card">
+      <div class="day-card-head">
+        <span class="day-label2">${d.label}</span>
+        <span class="day-count">${d.count} 次量測${d.exCount?` · ${d.exCount} 次訓練`:''}</span>
+      </div>
+      <div class="day-stats-row">
+        <div class="day-stat"><div class="ds-val">${d.avgScore ?? '--'}</div><div class="ds-lbl">平均分</div></div>
+        <div class="day-stat"><div class="ds-val">${d.bestScore ?? '--'}</div><div class="ds-lbl">最佳分</div></div>
+        <div class="day-stat"><div class="ds-val">${d.avgSway!=null ? d.avgSway.toFixed(1) : '--'}°</div><div class="ds-lbl">平均晃動</div></div>
+        <div class="day-stat"><div class="ds-val">${exMin}</div><div class="ds-lbl">訓練分鐘</div></div>
+      </div>
+      <div class="lean-wrap">
+        <div class="lean-labels"><span>← 左傾</span><span>中立</span><span>右傾 →</span></div>
+        <div class="lean-track"><div class="lean-marker ${lean.cls}" style="left:${lean.pos}%"></div></div>
+        <div class="lean-text ${lean.cls}">${lean.text}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function updateStats(){
@@ -1121,13 +1180,32 @@ async function updateStats(){
   document.getElementById('statAvg').textContent  = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '--';
   document.getElementById('statBest').textContent = scores.length ? Math.max(...scores) : '--';
   document.getElementById('statTime').textContent = Math.round(totalExTime/60) || '0';
+
+  // Left/right lean summary over the past 7 days
+  const weekReadings = all.filter(r => new Date(r.date) > weekAgo && r.type!=='exercise' && r.gamma!=null);
+  const el = document.getElementById('leanSummary');
+  if(!el) return;
+  if(!weekReadings.length){
+    el.textContent = '尚無足夠資料進行左右傾向分析';
+    el.className = 'lean-summary-text';
+    return;
+  }
+  const gammas = weekReadings.map(r=>parseFloat(r.gamma));
+  const avgG = gammas.reduce((a,b)=>a+b,0)/gammas.length;
+  const leftCount  = gammas.filter(g=>g<-1.5).length;
+  const rightCount = gammas.filter(g=>g>1.5).length;
+  const midCount   = gammas.length - leftCount - rightCount;
+  const lean = leanLabel(avgG);
+  el.innerHTML = `過去7天共 ${gammas.length} 筆量測：<b>${lean.text}</b>　
+    （置中 ${midCount} 次 · 偏左 ${leftCount} 次 · 偏右 ${rightCount} 次）`;
+  el.className = 'lean-summary-text ' + lean.cls;
 }
 
 async function exportCSV(){
   const all = await dbGetAll('sessions');
-  const csv = ['日期,類型,分數,晃動,時長(秒)']
+  const csv = ['日期,類型,分數,晃動,偏移角(左負右正),時長(秒)']
     .concat(all.map(r => [
-      r.date, r.type, r.score||'', r.sway||'', r.dur||''
+      r.date, r.type, r.score||'', r.sway||'', r.gamma||'', r.dur||''
     ].join(',')))
     .join('\n');
   const blob = new Blob(['\ufeff'+csv], {type:'text/csv'});
