@@ -122,6 +122,24 @@ body{
 .val-num{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:var(--tx);line-height:1}
 .val-unit{font-size:9.5px;color:var(--tx3);margin-top:1px}
 
+/* ── Gait stride test ── */
+.gait-foot-toggle{display:flex;gap:8px}
+.gait-foot-btn{flex:1;padding:10px 6px;border-radius:var(--ra2);border:1.5px solid var(--border);
+  background:var(--bg);color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer}
+.gait-foot-btn.active{background:var(--purplel);border-color:var(--purple);color:var(--purpled)}
+.gait-live{margin-top:12px;padding:10px 13px;border-radius:var(--ra2);background:var(--purplel);
+  color:var(--purpled);font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.gait-live i{font-size:15px}
+.gait-result{margin-top:12px;background:var(--bg);border-radius:var(--ra2);border:1px solid var(--border);padding:4px 14px}
+.gait-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
+  font-size:12.5px;color:var(--tx2);border-bottom:1px solid var(--border)}
+.gait-row:last-child{border-bottom:none}
+.gait-row b{font-family:'DM Mono',monospace;font-size:13.5px;color:var(--tx)}
+.gait-good{color:var(--greend)!important}
+.gait-mild{color:#a16207!important}
+.gait-mod{color:#c2410c!important}
+.gait-high{color:#991b1b!important}
+
 /* ── Status ── */
 .status{border-radius:var(--ra2);padding:10px 13px;font-size:13px;
   display:flex;align-items:flex-start;gap:8px;line-height:1.5;border:1px solid var(--border)}
@@ -272,6 +290,9 @@ body{
 .lean-summary-text.lean-mid{border-color:#86efac;background:var(--greenl)}
 .lean-summary-text.lean-left{border-color:#fca5a5;background:#fee2e2}
 .lean-summary-text.lean-right{border-color:#93c5fd;background:#dbeafe}
+.gait-day-line{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
+  font-size:11.5px;color:var(--tx2);display:flex;align-items:center;gap:5px}
+.gait-day-line i{color:var(--purple);font-size:13px}
 .export-btn{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:var(--ra2);
   background:transparent;color:var(--tx2);font-size:13px;font-weight:600;
   cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -428,7 +449,41 @@ body{
       </div>
     </div>
 
+    <!-- Left/right stride (gait) analysis -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-shoe"></i>步態測試（左右步伐分析）</div>
+      <p style="font-size:12.5px;color:var(--tx3);margin-bottom:12px;line-height:1.6">
+        請將手機穩定放在褲子口袋或用臂帶固定於腰間，接著開始測試並實際走一段路（建議 15 步以上，直線走廊最佳）。<br>
+        開始前請先選擇「先跨出的腳」，測試結束後系統會自動分析左右步伐時間與觸地力道差異。
+      </p>
+
+      <div class="gait-foot-toggle">
+        <button class="gait-foot-btn" id="gaitFootL" onclick="setGaitStartFoot('left')">👣 左腳先走</button>
+        <button class="gait-foot-btn active" id="gaitFootR" onclick="setGaitStartFoot('right')">👣 右腳先走</button>
+      </div>
+
+      <div class="btns" style="margin-top:12px">
+        <button class="btn btn-primary" id="gaitStartBtn" onclick="startGaitTest()">
+          <i class="ti ti-player-play"></i>開始測試
+        </button>
+        <button class="btn btn-stop" id="gaitStopBtn" onclick="stopGaitTest()" disabled>
+          <i class="ti ti-player-stop"></i>停止並分析
+        </button>
+      </div>
+
+      <div id="gaitLive" class="gait-live" style="display:none">
+        <i class="ti ti-activity"></i>偵測中，已記錄步伐：<b id="gaitLiveCount">0</b>
+      </div>
+
+      <div id="gaitResult" class="gait-result" style="display:none"></div>
+
+      <p style="font-size:11px;color:var(--tx3);margin-top:10px;line-height:1.6">
+        ※ 此數值為手機感測器估算之步態對稱參考指標，非醫療診斷數據，僅供自我追蹤與復健觀察使用。
+      </p>
+    </div>
+
   </div>
+
 
   <!-- ── Tab: Exercise ── -->
   <div class="tab-content" id="tabExercise">
@@ -500,6 +555,9 @@ body{
       <!-- Left/right lean summary -->
       <div class="card-title" style="margin:14px 0 6px"><i class="ti ti-arrows-horizontal"></i>左右傾向分析（近7天）</div>
       <div id="leanSummary" class="lean-summary-text">尚無足夠資料進行左右傾向分析</div>
+
+      <div class="card-title" style="margin:14px 0 6px"><i class="ti ti-shoe"></i>左右步伐對稱分析（近7天）</div>
+      <div id="gaitSummary" class="lean-summary-text">尚無步態測試資料，可到「即時」頁籤進行步態測試</div>
     </div>
 
     <!-- History list -->
@@ -902,6 +960,151 @@ function resetDisplay(){
 }
 
 /* ══════════════════════════════════════════
+   Left/Right Stride (Gait) Analysis
+   ── Detects heel-strike-like peaks in accelerometer
+      magnitude, alternates them L/R starting from the
+      user-selected starting foot, then compares step
+      timing and impact-force symmetry between sides.
+══════════════════════════════════════════ */
+let gaitStartFoot   = 'right';
+let gaitTestActive  = false;
+let gaitStartTime   = 0;
+let gaitPeaks       = [];
+let gaitLastPeakT   = -Infinity;
+let gaitBaseWindow  = [];
+let gaitPrev3       = [];
+
+function setGaitStartFoot(f){
+  gaitStartFoot = f;
+  document.getElementById('gaitFootL').classList.toggle('active', f==='left');
+  document.getElementById('gaitFootR').classList.toggle('active', f==='right');
+}
+
+function startGaitTest(){
+  if(gaitTestActive || !permGranted) return;
+  gaitTestActive = true;
+  gaitPeaks = []; gaitLastPeakT = -Infinity; gaitBaseWindow = []; gaitPrev3 = [];
+  gaitStartTime = Date.now();
+  document.getElementById('gaitStartBtn').disabled = true;
+  document.getElementById('gaitStopBtn').disabled = false;
+  document.getElementById('gaitResult').style.display = 'none';
+  document.getElementById('gaitLive').style.display = 'flex';
+  document.getElementById('gaitLiveCount').textContent = '0';
+  window.addEventListener('devicemotion', handleGaitMotion, true);
+  spk('步態測試開始，請開始走路');
+}
+
+function handleGaitMotion(e){
+  const a = e.accelerationIncludingGravity || {};
+  const x = a.x||0, y = a.y||0, z = a.z||0;
+  const mag = Math.sqrt(x*x+y*y+z*z);
+  const t = Date.now() - gaitStartTime;
+
+  gaitPrev3.push({t, mag});
+  if(gaitPrev3.length > 3) gaitPrev3.shift();
+  if(gaitPrev3.length < 3) return;
+
+  // Rolling baseline for a dynamic threshold
+  gaitBaseWindow.push(mag);
+  if(gaitBaseWindow.length > 60) gaitBaseWindow.shift();
+  const mean = gaitBaseWindow.reduce((a,b)=>a+b,0)/gaitBaseWindow.length;
+  const variance = gaitBaseWindow.reduce((s,v)=>s+(v-mean)**2,0)/gaitBaseWindow.length;
+  const sd = Math.sqrt(variance);
+  const threshold = mean + Math.max(0.5, sd*0.8);
+
+  const [p0,p1,p2] = gaitPrev3; // check if middle sample p1 is a local peak
+  if(p1.mag > p0.mag && p1.mag >= p2.mag && p1.mag > threshold){
+    if(p1.t - gaitLastPeakT > 250){ // min 250ms between steps (cap ~4 steps/sec)
+      gaitPeaks.push({t:p1.t, mag:p1.mag});
+      gaitLastPeakT = p1.t;
+      const el = document.getElementById('gaitLiveCount');
+      if(el) el.textContent = gaitPeaks.length;
+    }
+  }
+}
+
+async function stopGaitTest(){
+  if(!gaitTestActive) return;
+  gaitTestActive = false;
+  window.removeEventListener('devicemotion', handleGaitMotion, true);
+  document.getElementById('gaitStartBtn').disabled = false;
+  document.getElementById('gaitStopBtn').disabled = true;
+  document.getElementById('gaitLive').style.display = 'none';
+
+  const peaks = gaitPeaks;
+  const dur = Math.round((Date.now()-gaitStartTime)/1000);
+
+  if(peaks.length < 6){
+    setStatus('s-warn','ti-alert-circle','偵測到的步伐不足（至少需 6 步），請確保手機穩定固定後再試一次。');
+    return;
+  }
+
+  const intervals = [];
+  for(let i=0; i<peaks.length-1; i++) intervals.push(peaks[i+1].t - peaks[i].t);
+
+  // peaks[0] = starting foot, peaks[1] = other foot, alternating…
+  // interval[i] (the step landing at peaks[i+1]) belongs to startFoot when i is odd, otherFoot when i is even
+  const startTimes = [], otherTimes = [];
+  intervals.forEach((iv,i) => (i%2===1 ? startTimes : otherTimes).push(iv));
+
+  const startMags = [], otherMags = [];
+  peaks.forEach((p,i) => (i%2===0 ? startMags : otherMags).push(p.mag));
+
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const avgStartT = avg(startTimes), avgOtherT = avg(otherTimes);
+  const avgStartM = avg(startMags),  avgOtherM = avg(otherMags);
+
+  const leftAvgMs  = gaitStartFoot==='left'  ? avgStartT : avgOtherT;
+  const rightAvgMs = gaitStartFoot==='right' ? avgStartT : avgOtherT;
+  const leftMag    = gaitStartFoot==='left'  ? avgStartM : avgOtherM;
+  const rightMag   = gaitStartFoot==='right' ? avgStartM : avgOtherM;
+  const leftSteps   = gaitStartFoot==='left'  ? startTimes.length : otherTimes.length;
+  const rightSteps  = gaitStartFoot==='right' ? startTimes.length : otherTimes.length;
+
+  const symIndex = (l,r) => (l!=null && r!=null) ? Math.abs(l-r)/((l+r)/2)*100 : null;
+  const timeAsymPct = symIndex(leftAvgMs, rightAvgMs);
+  const magAsymPct  = symIndex(leftMag, rightMag);
+
+  const rec = {
+    type:'gait_walk', startFoot:gaitStartFoot,
+    stepCount:peaks.length, leftSteps, rightSteps,
+    leftAvgMs: leftAvgMs!=null?Math.round(leftAvgMs):null,
+    rightAvgMs: rightAvgMs!=null?Math.round(rightAvgMs):null,
+    leftMag: leftMag!=null?Math.round(leftMag*100)/100:null,
+    rightMag: rightMag!=null?Math.round(rightMag*100)/100:null,
+    timeAsymPct: timeAsymPct!=null?Math.round(timeAsymPct*10)/10:null,
+    magAsymPct: magAsymPct!=null?Math.round(magAsymPct*10)/10:null,
+    dur, date:new Date().toISOString(), dateLabel:todayLabel()
+  };
+  await saveRecord(rec);
+  renderGaitResult(rec);
+  spk(`步態測試完成，左右步伐不對稱指數 ${rec.timeAsymPct ?? '--'}%`);
+  if(currentTab==='history'){ await updateHistory(); await updateStats(); drawTrend(); }
+}
+
+function gaitAsymLabel(pct){
+  if(pct==null) return {text:'--', cls:''};
+  if(pct < 5)  return {text:`${pct}%（對稱良好）`, cls:'gait-good'};
+  if(pct < 10) return {text:`${pct}%（輕度不對稱）`, cls:'gait-mild'};
+  if(pct < 20) return {text:`${pct}%（中度不對稱）`, cls:'gait-mod'};
+  return {text:`${pct}%（明顯不對稱）`, cls:'gait-high'};
+}
+
+function renderGaitResult(rec){
+  const el = document.getElementById('gaitResult');
+  el.style.display = 'block';
+  const timeLbl = gaitAsymLabel(rec.timeAsymPct);
+  const magLbl  = gaitAsymLabel(rec.magAsymPct);
+  el.innerHTML = `
+    <div class="gait-row"><span>左腳平均步伐時間</span><b>${rec.leftAvgMs!=null ? (rec.leftAvgMs/1000).toFixed(2)+'秒' : '--'}</b></div>
+    <div class="gait-row"><span>右腳平均步伐時間</span><b>${rec.rightAvgMs!=null ? (rec.rightAvgMs/1000).toFixed(2)+'秒' : '--'}</b></div>
+    <div class="gait-row"><span>步伐時間不對稱指數</span><b class="${timeLbl.cls}">${timeLbl.text}</b></div>
+    <div class="gait-row"><span>觸地力道不對稱指數</span><b class="${magLbl.cls}">${magLbl.text}</b></div>
+    <div class="gait-row"><span>偵測步數</span><b>左 ${rec.leftSteps} · 右 ${rec.rightSteps}</b></div>
+  `;
+}
+
+/* ══════════════════════════════════════════
    Exercise Rendering
 ══════════════════════════════════════════ */
 function renderExercises(){
@@ -1101,9 +1304,10 @@ function computeDailyGroups(all){
   const groups = {};
   all.forEach(r => {
     const lbl = r.dateLabel || r.date?.slice(0,10) || '未知';
-    if(!groups[lbl]) groups[lbl] = {label:lbl, dateRaw:r.date, readings:[], exercises:[]};
+    if(!groups[lbl]) groups[lbl] = {label:lbl, dateRaw:r.date, readings:[], exercises:[], gaitTests:[]};
     if(new Date(r.date) > new Date(groups[lbl].dateRaw)) groups[lbl].dateRaw = r.date;
     if(r.type==='exercise') groups[lbl].exercises.push(r);
+    else if(r.type==='gait_walk') groups[lbl].gaitTests.push(r);
     else groups[lbl].readings.push(r);
   });
   return Object.values(groups).map(g => {
@@ -1115,10 +1319,15 @@ function computeDailyGroups(all){
     const avgGamma  = gammas.length ? gammas.reduce((a,b)=>a+b,0)/gammas.length : null;
     const avgSway   = sways.length  ? sways.reduce((a,b)=>a+b,0)/sways.length : null;
     const exTime    = g.exercises.reduce((a,r)=>a+(r.dur||0),0);
+
+    const timeAsyms = g.gaitTests.filter(r=>r.timeAsymPct!=null).map(r=>r.timeAsymPct);
+    const avgTimeAsym = timeAsyms.length ? timeAsyms.reduce((a,b)=>a+b,0)/timeAsyms.length : null;
+
     return {
       label:g.label, dateRaw:g.dateRaw, count:g.readings.length,
       avgScore, bestScore, avgGamma, avgSway,
-      exCount:g.exercises.length, exTime
+      exCount:g.exercises.length, exTime,
+      gaitTestCount:g.gaitTests.length, avgTimeAsym
     };
   }).sort((a,b) => new Date(b.dateRaw) - new Date(a.dateRaw));
 }
@@ -1146,11 +1355,12 @@ async function updateHistory(){
   list.innerHTML = days.map(d => {
     const lean = leanLabel(d.avgGamma);
     const exMin = d.exTime ? Math.round(d.exTime/6)/10 : 0;
+    const gaitLbl = d.gaitTestCount ? gaitAsymLabel(d.avgTimeAsym!=null ? Math.round(d.avgTimeAsym*10)/10 : null) : null;
     return `
     <div class="day-card">
       <div class="day-card-head">
         <span class="day-label2">${d.label}</span>
-        <span class="day-count">${d.count} 次量測${d.exCount?` · ${d.exCount} 次訓練`:''}</span>
+        <span class="day-count">${d.count} 次量測${d.exCount?` · ${d.exCount} 次訓練`:''}${d.gaitTestCount?` · ${d.gaitTestCount} 次步態測試`:''}</span>
       </div>
       <div class="day-stats-row">
         <div class="day-stat"><div class="ds-val">${d.avgScore ?? '--'}</div><div class="ds-lbl">平均分</div></div>
@@ -1163,6 +1373,7 @@ async function updateHistory(){
         <div class="lean-track"><div class="lean-marker ${lean.cls}" style="left:${lean.pos}%"></div></div>
         <div class="lean-text ${lean.cls}">${lean.text}</div>
       </div>
+      ${gaitLbl ? `<div class="gait-day-line"><i class="ti ti-shoe"></i>步伐對稱：<b class="${gaitLbl.cls}">${gaitLbl.text}</b></div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1199,13 +1410,33 @@ async function updateStats(){
   el.innerHTML = `過去7天共 ${gammas.length} 筆量測：<b>${lean.text}</b>　
     （置中 ${midCount} 次 · 偏左 ${leftCount} 次 · 偏右 ${rightCount} 次）`;
   el.className = 'lean-summary-text ' + lean.cls;
+
+  // Left/right stride (step) symmetry summary over the past 7 days
+  const gaitEl = document.getElementById('gaitSummary');
+  if(!gaitEl) return;
+  const weekGaitTests = all.filter(r => new Date(r.date) > weekAgo && r.type==='gait_walk');
+  if(!weekGaitTests.length){
+    gaitEl.textContent = '尚無步態測試資料，可到「即時」頁籤進行步態測試';
+    gaitEl.className = 'lean-summary-text';
+    return;
+  }
+  const timeAsyms = weekGaitTests.filter(r=>r.timeAsymPct!=null).map(r=>r.timeAsymPct);
+  const avgAsym = timeAsyms.length ? timeAsyms.reduce((a,b)=>a+b,0)/timeAsyms.length : null;
+  const lastTest = weekGaitTests.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+  const lbl = gaitAsymLabel(avgAsym!=null ? Math.round(avgAsym*10)/10 : null);
+  gaitEl.innerHTML = `過去7天共 ${weekGaitTests.length} 次步態測試，平均步伐時間不對稱指數：<b class="${lbl.cls}">${lbl.text}</b>　
+    （最近一次：左 ${lastTest.leftAvgMs!=null?(lastTest.leftAvgMs/1000).toFixed(2)+'秒':'--'} · 右 ${lastTest.rightAvgMs!=null?(lastTest.rightAvgMs/1000).toFixed(2)+'秒':'--'}）`;
+  gaitEl.className = 'lean-summary-text ' + lbl.cls;
 }
 
 async function exportCSV(){
   const all = await dbGetAll('sessions');
-  const csv = ['日期,類型,分數,晃動,偏移角(左負右正),時長(秒)']
+  const csv = ['日期,類型,分數,晃動,偏移角(左負右正),時長(秒),左腳步伐時間(秒),右腳步伐時間(秒),步伐不對稱指數(%),力道不對稱指數(%)']
     .concat(all.map(r => [
-      r.date, r.type, r.score||'', r.sway||'', r.gamma||'', r.dur||''
+      r.date, r.type, r.score||'', r.sway||'', r.gamma||'', r.dur||'',
+      r.leftAvgMs!=null?(r.leftAvgMs/1000).toFixed(2):'',
+      r.rightAvgMs!=null?(r.rightAvgMs/1000).toFixed(2):'',
+      r.timeAsymPct??'', r.magAsymPct??''
     ].join(',')))
     .join('\n');
   const blob = new Blob(['\ufeff'+csv], {type:'text/csv'});
